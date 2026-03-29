@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LOCAL SIEM — Blue Team Monitor</title>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:       #080c14;
+  --bg2:      #0d1220;
+  --bg3:      #111827;
+  --border:   #1e2d40;
+  --border2:  #2a3f5a;
+  --green:    #00ff88;
+  --cyan:     #00d4ff;
+  --yellow:   #ffcc00;
+  --orange:   #ff8800;
+  --red:      #ff2244;
+  --purple:   #b060ff;
+  --text:     #c8d8e8;
+  --textdim:  #5a7a9a;
+  --font:     'Courier New', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── TOP BAR ── */
+#topbar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+#topbar .logo {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--green);
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px var(--green);
+}
+#topbar .logo span { color: var(--cyan); }
+#topbar .sep { color: var(--border2); }
+.tag {
+  background: rgba(0,255,136,.12);
+  border: 1px solid rgba(0,255,136,.3);
+  color: var(--green);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+#clock { color: var(--cyan); font-size: 15px; margin-left: auto; }
+#threat-badge {
+  padding: 4px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  border: 1px solid;
+  transition: all .3s;
+}
+.threat-LOW      { background: rgba(0,255,136,.15); color: var(--green);  border-color: var(--green)  !important; }
+.threat-MEDIUM   { background: rgba(255,204,0,.15);  color: var(--yellow); border-color: var(--yellow) !important; }
+.threat-HIGH     { background: rgba(255,136,0,.2);   color: var(--orange); border-color: var(--orange) !important; animation: blink .8s infinite; }
+.threat-CRITICAL { background: rgba(255,34,68,.25);  color: var(--red);    border-color: var(--red)    !important; animation: blink .4s infinite; }
+@keyframes blink { 50% { opacity:.4; } }
+
+/* ── LAYOUT ── */
+.grid-main { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 10px; }
+
+/* ── STAT ROW ── */
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+/* ── CARD ── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+.card:hover { border-color: var(--border2); }
+.card-title {
+  font-size: 12px;
+  color: var(--textdim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-title .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 5px var(--cyan);
+}
+
+/* ── GAUGE ── */
+.gauge-wrap { display: flex; align-items: center; gap: 10px; }
+.gauge-circle {
+  position: relative;
+  width: 70px; height: 70px;
+  flex-shrink: 0;
+}
+.gauge-circle svg { transform: rotate(-90deg); }
+.gauge-circle .val {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  font-size: 15px;
+  font-weight: bold;
+  color: var(--green);
+}
+.gauge-circle .val.warn  { color: var(--yellow); }
+.gauge-circle .val.crit  { color: var(--red); }
+.gauge-info { flex: 1; }
+.gauge-info .label { color: var(--textdim); font-size: 12px; margin-bottom: 2px; }
+.gauge-info .value { color: var(--text); font-size: 13px; }
+.gauge-info .big   { font-size: 15px; color: var(--cyan); }
+
+/* ── MINI BARS (per-core) ── */
+.core-bars { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 6px; }
+.core-bar {
+  height: 16px; width: 16px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+.core-bar-fill {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: var(--green);
+  transition: height .5s;
+}
+
+/* ── NETWORK CHART ROW ── */
+.chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+.chart-right { display: flex; flex-direction: column; gap: 10px; }
+.chart-container { position: relative; height: 140px; }
+
+/* ── MAIN CONTENT ── */
+.content-row { display: grid; grid-template-columns: 3fr 1.2fr; gap: 10px; }
+
+/* ── TABLE ── */
+.scroll-box { overflow-y: auto; max-height: 320px; }
+.scroll-box::-webkit-scrollbar { width: 4px; }
+.scroll-box::-webkit-scrollbar-thumb { background: var(--border2); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  background: var(--bg3);
+  color: var(--textdim);
+  padding: 5px 8px;
+  text-align: left;
+  font-weight: normal;
+  letter-spacing: 1px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+td { padding: 4px 8px; border-bottom: 1px solid rgba(30,45,64,.5); }
+tr:hover td { background: rgba(0,212,255,.04); }
+.badge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  display: inline-block;
+}
+.b-CRITICAL { background: rgba(255,34,68,.25);   color: var(--red);    border: 1px solid rgba(255,34,68,.5); }
+.b-HIGH      { background: rgba(255,136,0,.2);    color: var(--orange); border: 1px solid rgba(255,136,0,.5); }
+.b-MEDIUM    { background: rgba(255,204,0,.15);   color: var(--yellow); border: 1px solid rgba(255,204,0,.5); }
+.b-LOW       { background: rgba(0,212,255,.1);    color: var(--cyan);   border: 1px solid rgba(0,212,255,.4); }
+.b-BLOCKED   { background: rgba(176,96,255,.2);   color: var(--purple); border: 1px solid rgba(176,96,255,.5); }
+.b-NONE      { background: rgba(0,255,136,.08);   color: var(--green);  border: 1px solid rgba(0,255,136,.25); }
+.b-INFO      { background: rgba(0,212,255,.08);   color: var(--cyan);   border: 1px solid rgba(0,212,255,.3); }
+
+/* ── EVENTS FEED ── */
+.event-feed { overflow-y: auto; max-height: 320px; }
+.event-feed::-webkit-scrollbar { width: 4px; }
+.event-feed::-webkit-scrollbar-thumb { background: var(--border2); }
+.event-item {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(30,45,64,.4);
+  animation: fadeIn .3s ease;
+}
+@keyframes fadeIn { from { opacity:0; transform: translateX(10px); } }
+.event-item:hover { background: rgba(0,212,255,.03); }
+.event-ts    { color: var(--textdim); font-size: 12px; }
+.event-desc  { color: var(--text); font-size: 13px; margin-top: 2px; line-height: 1.4; }
+.event-ip    { color: var(--cyan); }
+
+/* ── BOTTOM ROW ── */
+.bottom-row { display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 10px; }
+
+/* ── SITES TABLE ── */
+.site-row { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid rgba(30,45,64,.4); }
+.site-row:hover { background: rgba(0,212,255,.04); }
+.site-icon { font-size: 16px; flex-shrink: 0; }
+.site-host { color: var(--cyan); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.site-host.threat-host { color: var(--orange); }
+.site-sub { color: var(--textdim); font-size: 11px; }
+.site-age { color: var(--textdim); font-size: 11px; white-space: nowrap; }
+.site-proc { color: var(--green); font-size: 12px; white-space: nowrap; }
+
+/* ── BLOCK FORM ── */
+.block-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.block-input {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  outline: none;
+  flex: 1; min-width: 140px;
+}
+.block-input:focus { border-color: var(--cyan); box-shadow: 0 0 6px rgba(0,212,255,.2); }
+.btn {
+  background: transparent;
+  border: 1px solid;
+  color: inherit;
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all .2s;
+}
+.btn-red   { color: var(--red);    border-color: rgba(255,34,68,.5); }
+.btn-red:hover   { background: rgba(255,34,68,.15); }
+.btn-green { color: var(--green);  border-color: rgba(0,255,136,.4); }
+.btn-green:hover { background: rgba(0,255,136,.12); }
+.btn-cyan  { color: var(--cyan);   border-color: rgba(0,212,255,.4); }
+.btn-cyan:hover  { background: rgba(0,212,255,.1); }
+.btn-xs { padding: 2px 7px; font-size: 12px; }
+
+/* ── BLOCKED IPs ── */
+.blocked-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(176,96,255,.12);
+  border: 1px solid rgba(176,96,255,.4);
+  color: var(--purple);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 13px;
+  margin: 2px;
+}
+.blocked-chip button {
+  background: none;
+  border: none;
+  color: rgba(176,96,255,.6);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+}
+.blocked-chip button:hover { color: var(--red); }
+
+/* ── STAT SUMMARY ── */
+.stat-summary {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+.stat-pill { display: flex; flex-direction: column; align-items: center; }
+.stat-pill .sp-val { font-size: 22px; font-weight: bold; color: var(--cyan); line-height: 1; }
+.stat-pill .sp-lbl { font-size: 11px; color: var(--textdim); letter-spacing: 1px; margin-top: 2px; }
+
+/* ── GPU CARD ── */
+.gpu-row { display: flex; gap: 6px; flex-direction: column; }
+.gpu-row .kv { display: flex; justify-content: space-between; }
+.gpu-row .kv .k { color: var(--textdim); }
+.gpu-row .kv .v { color: var(--green); }
+
+/* ── ROUTE TABLE ── */
+.route-table td { font-size: 12px; color: var(--textdim); }
+.route-table td:first-child { color: var(--cyan); }
+.route-table td:last-child  { color: var(--green); }
+
+/* ── PRIVACY ALERT BANNER ── */
+#privacy-banner {
+  display: none;
+  position: fixed;
+  top: 52px; left: 0; right: 0;
+  z-index: 200;
+  padding: 0;
+  pointer-events: none;
+}
+#privacy-banner.show { display: flex; flex-direction: column; gap: 2px; }
+.priv-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-family: var(--font);
+  letter-spacing: 1px;
+  animation: slideIn .3s ease;
+  pointer-events: all;
+}
+.priv-alert.cam { background: rgba(255,34,68,.92); color: #fff; border-bottom: 1px solid rgba(255,34,68,.5); }
+.priv-alert.mic { background: rgba(255,136,0,.92); color: #fff; border-bottom: 1px solid rgba(255,136,0,.5); }
+.priv-alert .priv-icon { font-size: 18px; }
+.priv-alert .priv-text { flex: 1; }
+.priv-alert .priv-dismiss { cursor: pointer; opacity: .7; font-size: 16px; }
+.priv-alert .priv-dismiss:hover { opacity: 1; }
+@keyframes slideIn { from { transform: translateY(-100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
+
+/* ── PRIVACY CARD ── */
+.priv-card { display: flex; flex-direction: column; gap: 10px; }
+.priv-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  transition: all .3s;
+}
+.priv-row.active-cam { border-color: rgba(255,34,68,.6); background: rgba(255,34,68,.08); animation: blink .7s infinite; }
+.priv-row.active-mic { border-color: rgba(255,136,0,.6); background: rgba(255,136,0,.08); animation: blink .9s infinite; }
+.priv-icon-big { font-size: 26px; flex-shrink: 0; }
+.priv-info { flex: 1; }
+.priv-label { font-size: 13px; color: var(--textdim); letter-spacing: 1px; }
+.priv-status { font-size: 15px; font-weight: bold; margin-top: 2px; }
+.priv-app { font-size: 12px; color: var(--textdim); margin-top: 3px; word-break: break-all; }
+.priv-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.priv-dot.off  { background: #2a3f5a; }
+.priv-dot.on-cam { background: var(--red);    box-shadow: 0 0 8px var(--red); }
+.priv-dot.on-mic { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+
+/* ── PULSE ── */
+.pulse {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulsate 1.5s infinite;
+}
+@keyframes pulsate {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.3); opacity: .6; }
+}
+
+/* ── EMPTY ── */
+.empty { color: var(--textdim); text-align: center; padding: 20px; font-size: 13px; }
+
+/* ── INVESTIGATION MODAL ── */
+#inv-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.78); z-index: 500;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(3px);
+}
+#inv-overlay.show { display: flex; }
+#inv-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  width: 820px; max-width: 96vw;
+  max-height: 88vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 0 60px rgba(0,212,255,.15);
+  animation: modalIn .2s ease;
+}
+@keyframes modalIn { from { transform: scale(.95); opacity:0; } }
+#inv-header {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.inv-flag { font-size: 32px; flex-shrink: 0; }
+.inv-meta { flex: 1; }
+.inv-ip   { font-size: 22px; font-weight: bold; color: var(--cyan); }
+.inv-host { font-size: 13px; color: var(--textdim); margin-top: 3px; }
+.inv-loc  { font-size: 13px; color: var(--text); margin-top: 2px; }
+.inv-badge-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.inv-badge {
+  padding: 2px 10px; border-radius: 12px; font-size: 12px;
+  background: rgba(0,212,255,.1); border: 1px solid rgba(0,212,255,.3);
+  color: var(--cyan);
+}
+.inv-badge.danger { background: rgba(255,34,68,.12); border-color: rgba(255,34,68,.4); color: var(--red); }
+.inv-badge.warn   { background: rgba(255,136,0,.12); border-color: rgba(255,136,0,.4); color: var(--orange); }
+#inv-close {
+  background: none; border: 1px solid var(--border2);
+  color: var(--textdim); font-size: 18px; cursor: pointer;
+  border-radius: 4px; padding: 2px 8px; flex-shrink: 0;
+}
+#inv-close:hover { color: var(--red); border-color: rgba(255,34,68,.5); }
+#inv-body {
+  overflow-y: auto; padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+#inv-body::-webkit-scrollbar { width: 4px; }
+#inv-body::-webkit-scrollbar-thumb { background: var(--border2); }
+.inv-section { }
+.inv-section-title {
+  font-size: 11px; color: var(--textdim);
+  letter-spacing: 2px; text-transform: uppercase;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+}
+.inv-section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+.geo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.geo-item { background: var(--bg3); border-radius: 5px; padding: 10px 12px; border: 1px solid var(--border); }
+.geo-item .gi-label { font-size: 11px; color: var(--textdim); letter-spacing: 1px; text-transform: uppercase; }
+.geo-item .gi-val   { font-size: 14px; color: var(--text); margin-top: 4px; font-weight: bold; }
+.hop-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.hop-table th { background: var(--bg3); color: var(--textdim); padding: 5px 8px; text-align: left; font-weight: normal; letter-spacing: 1px; font-size: 11px; }
+.hop-table td { padding: 5px 8px; border-bottom: 1px solid rgba(30,45,64,.5); }
+.hop-table tr:hover td { background: rgba(0,212,255,.04); }
+.hop-num  { color: var(--textdim); width: 30px; text-align: center; }
+.hop-host { color: var(--cyan); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hop-geo  { color: var(--textdim); font-size: 12px; }
+.hop-ms   { color: var(--green); text-align: right; white-space: nowrap; }
+.hop-ms.slow { color: var(--yellow); }
+.hop-ms.dead { color: #3a4a5a; }
+#inv-whois {
+  font-family: var(--font); font-size: 12px; color: var(--textdim);
+  background: var(--bg3); border-radius: 4px; padding: 10px 14px;
+  white-space: pre-wrap; line-height: 1.7; max-height: 140px; overflow-y: auto;
+  border: 1px solid var(--border);
+}
+#inv-footer {
+  padding: 12px 20px; border-top: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: center; flex-shrink: 0; flex-wrap: wrap;
+}
+#inv-footer-threat { margin-right: auto; font-size: 13px; }
+.inv-loading {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; padding: 50px; color: var(--textdim); font-size: 14px;
+}
+.spinner {
+  width: 22px; height: 22px; border: 2px solid var(--border2);
+  border-top-color: var(--cyan); border-radius: 50%;
+  animation: spin .7s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+/* clickable events */
+.event-item { cursor: pointer; }
+.event-item:hover { background: rgba(0,212,255,.06) !important; }
+.event-item .inv-link {
+  display: inline-block; margin-top: 4px;
+  font-size: 11px; color: var(--cyan);
+  border: 1px solid rgba(0,212,255,.3);
+  padding: 1px 8px; border-radius: 3px;
+}
+.event-item .inv-link:hover { background: rgba(0,212,255,.1); }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── PRIVACY ALERT BANNER ─────────────────────────────────────── -->
+<div id="privacy-banner">
+  <div id="cam-alert" class="priv-alert cam" style="display:none">
+    <span class="priv-icon">📷</span>
+    <span class="priv-text">
+      <strong>CAMERA ACTIVATED</strong> — <span id="cam-alert-app">Unknown app</span>
+    </span>
+    <span class="priv-dismiss" onclick="dismissAlert('cam')">✕</span>
+  </div>
+  <div id="mic-alert" class="priv-alert mic" style="display:none">
+    <span class="priv-icon">🎙️</span>
+    <span class="priv-text">
+      <strong>MICROPHONE ACTIVATED</strong> — <span id="mic-alert-app">Unknown app</span>
+    </span>
+    <span class="priv-dismiss" onclick="dismissAlert('mic')">✕</span>
+  </div>
+</div>
+
+<!-- ── TOP BAR ─────────────────────────────────────────────────── -->
+<div id="topbar">
+  <div class="logo">&#9632; LOCAL<span>SIEM</span></div>
+  <span class="tag">BLUE TEAM</span>
+  <span class="tag" id="hostname-tag">...</span>
+  <span class="sep">|</span>
+  <span id="threat-badge" class="threat-LOW">THREAT: LOW</span>
+  <span class="sep">|</span>
+  <span style="color:var(--textdim);font-size:13px;">CONNECTIONS: <span id="hdr-conns" style="color:var(--cyan)">0</span></span>
+  <span style="color:var(--textdim);font-size:13px;">EVENTS: <span id="hdr-events" style="color:var(--cyan)">0</span></span>
+  <span style="color:var(--textdim);font-size:13px;">BLOCKED: <span id="hdr-blocked" style="color:var(--purple)">0</span></span>
+  <div id="clock">--:--:--</div>
+  <span class="pulse" id="conn-pulse"></span>
+</div>
+
+<!-- ── STAT SUMMARY BAR ─────────────────────────────────────────── -->
+<div class="stat-summary">
+  <div class="stat-pill">
+    <div class="sp-val" id="s-conns">0</div>
+    <div class="sp-lbl">CONNECTIONS</div>
+  </div>
+  <div class="stat-pill">
+    <div class="sp-val" id="s-ext" style="color:var(--yellow)">0</div>
+    <div class="sp-lbl">EXTERNAL</div>
+  </div>
+  <div class="stat-pill">
+    <div class="sp-val" id="s-high" style="color:var(--red)">0</div>
+    <div class="sp-lbl">HIGH THREATS</div>
+  </div>
+  <div class="stat-pill">
+    <div class="sp-val" id="s-med" style="color:var(--orange)">0</div>
+    <div class="sp-lbl">MEDIUM</div>
+  </div>
+  <div class="stat-pill">
+    <div class="sp-val" id="s-blocked" style="color:var(--purple)">0</div>
+    <div class="sp-lbl">BLOCKED IPs</div>
+  </div>
+  <div class="stat-pill" style="margin-left:auto">
+    <div class="sp-val" id="s-cpu" style="color:var(--green)">0%</div>
+    <div class="sp-lbl">CPU</div>
+  </div>
+  <div class="stat-pill">
+    <div class="sp-val" id="s-ram" style="color:var(--cyan)">0%</div>
+    <div class="sp-lbl">RAM</div>
+  </div>
+  <div class="stat-pill">
+    <div class="sp-val" id="s-up" style="color:var(--green); font-size:14px">0</div>
+    <div class="sp-lbl">↑ KB/s</div>
+  </div>
+  <div class="stat-pill">
+    <div class="sp-val" id="s-dn" style="color:var(--cyan); font-size:14px">0</div>
+    <div class="sp-lbl">↓ KB/s</div>
+  </div>
+</div>
+
+<!-- ── MAIN GRID ─────────────────────────────────────────────────── -->
+<div class="grid-main">
+
+  <!-- ROW 1: System Stat Cards -->
+  <div class="stat-row">
+
+    <!-- CPU -->
+    <div class="card">
+      <div class="card-title"><div class="dot"></div>CPU</div>
+      <div class="gauge-wrap">
+        <div class="gauge-circle">
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <circle cx="35" cy="35" r="28" stroke="#1e2d40" stroke-width="6" fill="none"/>
+            <circle id="cpu-arc" cx="35" cy="35" r="28"
+              stroke="#00ff88" stroke-width="6" fill="none"
+              stroke-dasharray="176 176" stroke-linecap="round"/>
+          </svg>
+          <div class="val" id="cpu-pct">0%</div>
+        </div>
+        <div class="gauge-info">
+          <div class="label">FREQUENCY</div>
+          <div class="value" id="cpu-freq">—</div>
+          <div class="label" style="margin-top:4px">LOAD AVG</div>
+          <div class="value" id="cpu-load">—</div>
+        </div>
+      </div>
+      <div class="core-bars" id="core-bars"></div>
+    </div>
+
+    <!-- RAM -->
+    <div class="card">
+      <div class="card-title"><div class="dot" style="background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div>MEMORY</div>
+      <div class="gauge-wrap">
+        <div class="gauge-circle">
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <circle cx="35" cy="35" r="28" stroke="#1e2d40" stroke-width="6" fill="none"/>
+            <circle id="ram-arc" cx="35" cy="35" r="28"
+              stroke="#00d4ff" stroke-width="6" fill="none"
+              stroke-dasharray="176 176" stroke-linecap="round"/>
+          </svg>
+          <div class="val" id="ram-pct" style="color:var(--cyan)">0%</div>
+        </div>
+        <div class="gauge-info">
+          <div class="label">USED / TOTAL</div>
+          <div class="value big" id="ram-used">—</div>
+          <div class="label" style="margin-top:4px">SWAP</div>
+          <div class="value" id="ram-swap">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NETWORK SPEED -->
+    <div class="card">
+      <div class="card-title"><div class="dot" style="background:var(--orange);box-shadow:0 0 5px var(--orange)"></div>NETWORK I/O</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <div>
+          <div style="color:var(--textdim);font-size:13px;margin-bottom:4px">↑ UPLOAD KB/s</div>
+          <div style="background:var(--bg3);border-radius:3px;height:10px;overflow:hidden">
+            <div id="up-bar" style="height:100%;background:var(--green);width:0%;transition:width .5s;border-radius:3px"></div>
+          </div>
+          <div style="color:var(--green);font-size:13px;margin-top:2px" id="up-val">0</div>
+        </div>
+        <div>
+          <div style="color:var(--textdim);font-size:13px;margin-bottom:4px">↓ DOWNLOAD KB/s</div>
+          <div style="background:var(--bg3);border-radius:3px;height:10px;overflow:hidden">
+            <div id="dn-bar" style="height:100%;background:var(--cyan);width:0%;transition:width .5s;border-radius:3px"></div>
+          </div>
+          <div style="color:var(--cyan);font-size:13px;margin-top:2px" id="dn-val">0</div>
+        </div>
+        <div style="display:flex;gap:12px;font-size:13px;color:var(--textdim)">
+          <span>SENT: <span id="net-sent" style="color:var(--text)">—</span></span>
+          <span>RECV: <span id="net-recv" style="color:var(--text)">—</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISK -->
+    <div class="card">
+      <div class="card-title"><div class="dot" style="background:var(--yellow);box-shadow:0 0 5px var(--yellow)"></div>DISK</div>
+      <div id="disk-parts" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div>
+    </div>
+
+  </div><!-- /stat-row -->
+
+  <!-- ROW 2: Network Chart + GPU + Privacy -->
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title"><div class="dot" style="background:var(--orange)"></div>NETWORK TRAFFIC  (60s)</div>
+      <div class="chart-container">
+        <canvas id="netChart"></canvas>
+      </div>
+    </div>
+    <!-- Right column: GPU stacked above Privacy -->
+    <div class="chart-right">
+      <div class="card">
+        <div class="card-title"><div class="dot" style="background:var(--purple);box-shadow:0 0 5px var(--purple)"></div>GPU</div>
+        <div class="gpu-row" id="gpu-info">
+          <div class="kv"><span class="k">Model</span><span class="v" id="gpu-name">—</span></div>
+          <div class="kv"><span class="k">VRAM</span><span class="v" id="gpu-vram">—</span></div>
+          <div class="kv"><span class="k">Vendor</span><span class="v" id="gpu-vendor">—</span></div>
+          <div class="kv"><span class="k">Activity</span><span class="v" id="gpu-act">—</span></div>
+        </div>
+      </div>
+      <!-- PRIVACY: Camera + Mic -->
+      <div class="card">
+        <div class="card-title"><div class="dot" style="background:var(--red);box-shadow:0 0 5px var(--red)"></div>PRIVACY MONITOR</div>
+        <div class="priv-card">
+          <div class="priv-row" id="cam-row">
+            <span class="priv-icon-big">📷</span>
+            <div class="priv-info">
+              <div class="priv-label">CAMERA</div>
+              <div class="priv-status" id="cam-status" style="color:var(--green)">INACTIVE</div>
+              <div class="priv-app" id="cam-app"></div>
+            </div>
+            <div class="priv-dot off" id="cam-dot"></div>
+          </div>
+          <div class="priv-row" id="mic-row">
+            <span class="priv-icon-big">🎙️</span>
+            <div class="priv-info">
+              <div class="priv-label">MICROPHONE</div>
+              <div class="priv-status" id="mic-status" style="color:var(--green)">INACTIVE</div>
+              <div class="priv-app" id="mic-app"></div>
+            </div>
+            <div class="priv-dot off" id="mic-dot"></div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /chart-right -->
+  </div>
+
+  <!-- ROW 3: Block IP form -->
+  <div class="card" style="padding:10px 14px">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <span style="color:var(--textdim);letter-spacing:1px;font-size:13px">BLOCK IP:</span>
+      <div class="block-form">
+        <input class="block-input" id="block-ip-input" placeholder="e.g. 192.168.1.100" maxlength="45"/>
+        <button class="btn btn-red" onclick="blockIP()">&#9632; BLOCK</button>
+        <button class="btn btn-cyan" onclick="refreshRoutes()">&#8635; ROUTES</button>
+        <button class="btn btn-green" onclick="clearEvents()">&#10006; CLR EVENTS</button>
+      </div>
+      <span style="color:var(--textdim);font-size:13px;margin-left:auto">LAST UPDATE: <span id="last-update" style="color:var(--green)">—</span></span>
+    </div>
+  </div>
+
+  <!-- ROW 4: Connections + Events Feed -->
+  <div class="content-row">
+
+    <!-- Active Connections -->
+    <div class="card">
+      <div class="card-title"><div class="dot"></div>ACTIVE CONNECTIONS  <span id="conn-count" style="color:var(--cyan);margin-left:6px">0</span></div>
+      <div class="scroll-box">
+        <table>
+          <thead>
+            <tr>
+              <th>THREAT</th>
+              <th>REMOTE</th>
+              <th>LOCAL</th>
+              <th>STATUS</th>
+              <th>PROCESS</th>
+              <th>ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="conn-tbody">
+            <tr><td colspan="6" class="empty">Waiting for data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Security Events -->
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between">
+        <span><div class="dot" style="background:var(--red);box-shadow:0 0 5px var(--red)"></div>SECURITY EVENTS</span>
+        <span id="event-count" style="color:var(--cyan)">0</span>
+      </div>
+      <div class="event-feed" id="event-feed">
+        <div class="empty">No events yet...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ROW 5: Active Websites Visited -->
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between">
+      <span><div class="dot" style="background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div>
+        ACTIVE WEBSITES &amp; CONNECTIONS
+        <span style="color:var(--textdim);font-size:13px;margin-left:6px">external ESTABLISHED — auto-expires 120s idle</span>
+      </span>
+      <span id="sites-count" style="color:var(--cyan)">0</span>
+    </div>
+    <div class="scroll-box" style="max-height:180px" id="sites-feed">
+      <div class="empty">No external connections yet...</div>
+    </div>
+  </div>
+
+  <!-- ROW 6: Listening Ports + Blocked IPs + Routes -->
+  <div class="bottom-row">
+
+    <!-- Listening Ports -->
+    <div class="card">
+      <div class="card-title"><div class="dot" style="background:var(--yellow)"></div>LISTENING PORTS</div>
+      <div class="scroll-box" style="max-height:200px">
+        <table>
+          <thead>
+            <tr><th>PORT</th><th>ADDRESS</th><th>PROCESS</th></tr>
+          </thead>
+          <tbody id="listen-tbody">
+            <tr><td colspan="3" class="empty">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Blocked IPs -->
+    <div class="card">
+      <div class="card-title"><div class="dot" style="background:var(--purple)"></div>BLOCKED IPs  <span id="blocked-count" style="color:var(--purple);margin-left:6px">0</span></div>
+      <div id="blocked-list" style="min-height:40px;padding:4px 0">
+        <div class="empty">No blocked IPs</div>
+      </div>
+    </div>
+
+    <!-- Network Routes -->
+    <div class="card">
+      <div class="card-title"><div class="dot" style="background:var(--cyan)"></div>NETWORK ROUTES</div>
+      <div class="scroll-box" style="max-height:200px">
+        <table class="route-table">
+          <thead>
+            <tr><th>DESTINATION</th><th>GATEWAY</th><th>FLAGS</th><th>IFACE</th></tr>
+          </thead>
+          <tbody id="route-tbody">
+            <tr><td colspan="4" class="empty">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /grid-main -->
+
+<script>
+// ─── CLOCK ───────────────────────────────────────────────────────────────────
+function tickClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-US', { hour12: false });
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ─── CHART.JS SETUP ──────────────────────────────────────────────────────────
+const chartCtx = document.getElementById('netChart').getContext('2d');
+const netChart = new Chart(chartCtx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      {
+        label: '↑ Upload KB/s',
+        data: [],
+        borderColor: '#00ff88',
+        backgroundColor: 'rgba(0,255,136,.06)',
+        borderWidth: 1.5,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+      },
+      {
+        label: '↓ Download KB/s',
+        data: [],
+        borderColor: '#00d4ff',
+        backgroundColor: 'rgba(0,212,255,.06)',
+        borderWidth: 1.5,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+      },
+    ],
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { labels: { color: '#5a7a9a', font: { family: 'Courier New', size: 10 } } },
+    },
+    scales: {
+      x: {
+        ticks: { color: '#5a7a9a', font: { size: 9 }, maxTicksLimit: 6, maxRotation: 0 },
+        grid:  { color: 'rgba(30,45,64,.5)' },
+      },
+      y: {
+        ticks: { color: '#5a7a9a', font: { size: 9 } },
+        grid:  { color: 'rgba(30,45,64,.5)' },
+        beginAtZero: true,
+      },
+    },
+  },
+});
+
+function updateChart(history) {
+  netChart.data.labels               = history.labels;
+  netChart.data.datasets[0].data     = history.sent;
+  netChart.data.datasets[1].data     = history.recv;
+  netChart.update('none');
+}
+
+// ─── GAUGE ARC HELPER ────────────────────────────────────────────────────────
+const CIRC = 2 * Math.PI * 28;
+function setArc(id, pct) {
+  const filled = (pct / 100) * CIRC;
+  document.getElementById(id).setAttribute('stroke-dasharray', `${filled} ${CIRC}`);
+}
+
+// ─── COLOUR HELPERS ──────────────────────────────────────────────────────────
+const THREAT_COLOURS = {
+  CRITICAL: '#ff2244',
+  HIGH:     '#ff8800',
+  MEDIUM:   '#ffcc00',
+  LOW:      '#00d4ff',
+  NONE:     '#00ff88',
+  BLOCKED:  '#b060ff',
+  INFO:     '#00d4ff',
+};
+function threatBadge(level) {
+  return `<span class="badge b-${level}">${level}</span>`;
+}
+function severityBadge(sev) {
+  return `<span class="badge b-${sev}">${sev}</span>`;
+}
+
+// ─── CPU UPDATE ──────────────────────────────────────────────────────────────
+function updateCPU(cpu) {
+  const pct = cpu.percent;
+  setArc('cpu-arc', pct);
+  const el = document.getElementById('cpu-pct');
+  el.textContent = pct + '%';
+  el.className = 'val' + (pct > 85 ? ' crit' : pct > 60 ? ' warn' : '');
+  document.getElementById('cpu-freq').textContent =
+    cpu.freq_mhz ? `${cpu.freq_mhz} MHz` : '—';
+  document.getElementById('cpu-load').textContent =
+    `${cpu.load_1} / ${cpu.load_5} / ${cpu.load_15}`;
+  document.getElementById('s-cpu').textContent = pct + '%';
+
+  // Per-core bars
+  const container = document.getElementById('core-bars');
+  if (container.children.length !== cpu.per_core.length) {
+    container.innerHTML = cpu.per_core.map(() =>
+      `<div class="core-bar"><div class="core-bar-fill" style="height:0%"></div></div>`
+    ).join('');
+  }
+  cpu.per_core.forEach((v, i) => {
+    const bar = container.children[i];
+    if (bar) {
+      const fill = bar.querySelector('.core-bar-fill');
+      fill.style.height = v + '%';
+      fill.style.background = v > 85 ? '#ff2244' : v > 60 ? '#ffaa00' : '#00ff88';
+      bar.title = `Core ${i}: ${v}%`;
+    }
+  });
+}
+
+// ─── RAM UPDATE ──────────────────────────────────────────────────────────────
+function updateRAM(mem) {
+  const pct = mem.percent;
+  setArc('ram-arc', pct);
+  const el = document.getElementById('ram-pct');
+  el.textContent = pct + '%';
+  el.style.color = pct > 85 ? '#ff2244' : pct > 70 ? '#ffaa00' : '#00d4ff';
+  document.getElementById('ram-used').textContent =
+    `${mem.used_fmt} / ${mem.total_fmt}`;
+  document.getElementById('ram-swap').textContent =
+    `${mem.swap_percent}% (${mem.swap_used ? Math.round(mem.swap_used/1048576)+'MB used' : '0'})`;
+  document.getElementById('s-ram').textContent = pct + '%';
+}
+
+// ─── NETWORK I/O UPDATE ──────────────────────────────────────────────────────
+let maxRate = 100;
+function updateNetwork(net) {
+  const up = net.sent_kbps, dn = net.recv_kbps;
+  maxRate = Math.max(maxRate, up, dn, 10);
+  document.getElementById('up-val').textContent   = up.toFixed(1);
+  document.getElementById('dn-val').textContent   = dn.toFixed(1);
+  document.getElementById('up-bar').style.width   = Math.min((up/maxRate)*100, 100) + '%';
+  document.getElementById('dn-bar').style.width   = Math.min((dn/maxRate)*100, 100) + '%';
+  document.getElementById('net-sent').textContent = net.total_sent;
+  document.getElementById('net-recv').textContent = net.total_recv;
+  document.getElementById('s-up').textContent     = up.toFixed(1);
+  document.getElementById('s-dn').textContent     = dn.toFixed(1);
+  updateChart(net.history);
+}
+
+// ─── DISK UPDATE ─────────────────────────────────────────────────────────────
+function updateDisk(disk) {
+  const container = document.getElementById('disk-parts');
+  container.innerHTML = disk.partitions.map(p => `
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--textdim);margin-bottom:3px">
+        <span>${p.device} (${p.mountpoint})</span>
+        <span style="color:${p.percent>85?'#ff2244':p.percent>70?'#ffaa00':'#ffcc00'}">${p.percent}%</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:3px;height:8px;overflow:hidden">
+        <div style="height:100%;width:${p.percent}%;background:${p.percent>85?'#ff2244':p.percent>70?'#ffaa00':'#ffcc00'};transition:width .5s;border-radius:3px"></div>
+      </div>
+      <div style="color:var(--textdim);font-size:13px;margin-top:2px">${p.used} / ${p.total}</div>
+    </div>
+  `).join('');
+}
+
+// ─── CONNECTIONS TABLE ───────────────────────────────────────────────────────
+function updateConnections(conns, count, high, med) {
+  document.getElementById('conn-count').textContent = count;
+  document.getElementById('s-conns').textContent    = count;
+  document.getElementById('s-high').textContent     = high;
+  document.getElementById('s-med').textContent      = med;
+  document.getElementById('hdr-conns').textContent  = count;
+
+  const tbody = document.getElementById('conn-tbody');
+  if (!conns || conns.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No connections</td></tr>';
+    return;
+  }
+  tbody.innerHTML = conns.slice(0, 200).map(c => {
+    const rowStyle = c.threat === 'CRITICAL' ? 'background:rgba(255,34,68,.05)' :
+                     c.threat === 'HIGH'     ? 'background:rgba(255,136,0,.04)'  : '';
+    const blockBtn = (c.remote_ip && c.threat !== 'NONE' && c.threat !== 'BLOCKED')
+      ? `<button class="btn btn-red btn-xs" onclick="blockIPDirect('${esc(c.remote_ip)}')">BLOCK</button>`
+      : '';
+    const invBtn = c.remote_ip && !c.private
+      ? `<button class="btn btn-cyan btn-xs" onclick="openInvestigation('${esc(c.remote_ip)}','${esc(c.threat)}','${esc(c.process)} → ${esc(c.remote)}')">🔍</button>`
+      : '';
+    return `<tr style="${rowStyle}">
+      <td>${threatBadge(c.threat)}</td>
+      <td style="color:${c.private?'var(--textdim)':'var(--cyan)'};font-size:13px">${esc(c.remote)}</td>
+      <td style="color:var(--textdim);font-size:13px">${esc(c.local)}</td>
+      <td style="color:${c.status==='ESTABLISHED'?'var(--green)':'var(--yellow)'};font-size:13px">${esc(c.status)}</td>
+      <td style="color:var(--text);font-size:13px">${esc(c.process)}</td>
+      <td style="white-space:nowrap">${invBtn} ${blockBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── EVENTS FEED ─────────────────────────────────────────────────────────────
+let eventSet = new Set();
+function addEventToFeed(evt) {
+  if (eventSet.has(evt.id)) return;
+  eventSet.add(evt.id);
+
+  const feed = document.getElementById('event-feed');
+  const empty = feed.querySelector('.empty');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'event-item';
+  const canInvestigate = evt.source_ip && evt.source_ip !== 'N/A' && evt.source_ip !== 'localhost';
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      ${severityBadge(evt.severity)}
+      <span style="color:var(--textdim);font-size:12px;letter-spacing:1px">${esc(evt.type)}</span>
+      <span class="event-ts">${esc(evt.date)} ${esc(evt.timestamp)}</span>
+      ${canInvestigate ? `
+        <button class="btn btn-cyan btn-xs" style="margin-left:auto"
+          onclick="openInvestigation('${esc(evt.source_ip)}','${esc(evt.severity)}','${esc(evt.description).replace(/'/g,"\\'")}')">
+          🔍 Investigate
+        </button>
+        <button class="btn btn-red btn-xs"
+          onclick="blockIPDirect('${esc(evt.source_ip)}')">
+          🚫 Block
+        </button>` : ''}
+    </div>
+    <div class="event-desc">
+      <span class="event-ip">${esc(evt.source_ip)}</span> — ${esc(evt.description)}
+      ${evt.action ? `<span style="color:var(--textdim)"> [${esc(evt.action)}]</span>` : ''}
+    </div>`;
+  feed.insertBefore(div, feed.firstChild);
+
+  // Trim to 200 items
+  while (feed.children.length > 200) {
+    feed.removeChild(feed.lastChild);
+  }
+}
+
+function populateEvents(events) {
+  events.forEach(addEventToFeed);
+}
+
+// ─── LISTENING PORTS ─────────────────────────────────────────────────────────
+function updateListening(ports) {
+  const tbody = document.getElementById('listen-tbody');
+  if (!ports || ports.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">—</td></tr>';
+    return;
+  }
+  tbody.innerHTML = ports.map(p => `
+    <tr>
+      <td style="color:${p.flagged?'var(--red)':'var(--yellow)'}">${p.port}${p.flagged?'⚠':''}
+      </td>
+      <td style="color:var(--textdim);font-size:13px">${esc(p.address)}</td>
+      <td style="color:var(--text)">${esc(p.process)}</td>
+    </tr>`).join('');
+}
+
+// ─── BLOCKED IPs ─────────────────────────────────────────────────────────────
+function updateBlocked(ips) {
+  const list = document.getElementById('blocked-list');
+  const count = ips.length;
+  document.getElementById('blocked-count').textContent  = count;
+  document.getElementById('s-blocked').textContent      = count;
+  document.getElementById('hdr-blocked').textContent    = count;
+
+  if (count === 0) {
+    list.innerHTML = '<div class="empty">No blocked IPs</div>';
+    return;
+  }
+  list.innerHTML = ips.map(ip => `
+    <span class="blocked-chip">
+      ${esc(ip)}
+      <button onclick="unblockIP('${esc(ip)}')" title="Unblock">&#x2715;</button>
+    </span>`).join('');
+}
+
+// ─── ROUTES ──────────────────────────────────────────────────────────────────
+function updateRoutes(routes) {
+  const tbody = document.getElementById('route-tbody');
+  if (!routes || routes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">—</td></tr>';
+    return;
+  }
+  tbody.innerHTML = routes.map(r => `
+    <tr>
+      <td>${esc(r.dest)}</td>
+      <td style="color:var(--textdim)">${esc(r.gateway)}</td>
+      <td style="color:var(--textdim)">${esc(r.flags)}</td>
+      <td style="color:var(--green)">${esc(r.interface)}</td>
+    </tr>`).join('');
+}
+
+// ─── THREAT BADGE ────────────────────────────────────────────────────────────
+function updateThreat(level, high) {
+  const badge = document.getElementById('threat-badge');
+  badge.textContent  = `THREAT: ${level}`;
+  badge.className    = `threat-${level}`;
+  document.getElementById('s-high').style.color =
+    high > 0 ? 'var(--red)' : 'var(--textdim)';
+}
+
+// ─── GPU ─────────────────────────────────────────────────────────────────────
+function updateGPU(gpu) {
+  document.getElementById('gpu-name').textContent   = gpu.name   || '—';
+  document.getElementById('gpu-vram').textContent   = gpu.vram   || '—';
+  document.getElementById('gpu-vendor').textContent = gpu.vendor || '—';
+  document.getElementById('gpu-act').textContent    = gpu.activity || 'N/A';
+}
+
+// ─── BLOCK / UNBLOCK ─────────────────────────────────────────────────────────
+function blockIP() {
+  const ip = document.getElementById('block-ip-input').value.trim();
+  if (!ip) return;
+  socket.emit('block_ip', { ip });
+  fetch('/api/block', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ip }),
+  });
+  document.getElementById('block-ip-input').value = '';
+}
+function blockIPDirect(ip) {
+  if (!confirm(`Block IP: ${ip}?`)) return;
+  fetch('/api/block', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ip }),
+  }).then(() => socket.emit('block_ip', { ip }));
+}
+function unblockIP(ip) {
+  fetch('/api/unblock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ip }),
+  }).then(() => socket.emit('unblock_ip', { ip }));
+}
+document.getElementById('block-ip-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') blockIP();
+});
+
+function refreshRoutes() {
+  socket.emit('request_routes');
+  socket.emit('request_listening');
+}
+
+function clearEvents() {
+  if (!confirm('Clear event log?')) return;
+  eventSet.clear();
+  document.getElementById('event-feed').innerHTML =
+    '<div class="empty">Event log cleared</div>';
+}
+
+// ─── ESCAPE HTML ─────────────────────────────────────────────────────────────
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ─── PRIVACY MONITOR ─────────────────────────────────────────────────────────
+let _camDismissed = false, _micDismissed = false;
+
+function updatePrivacy(p) {
+  const camOn = p.camera;
+  const micOn = p.mic;
+
+  // ── Camera card ──
+  const camRow    = document.getElementById('cam-row');
+  const camStatus = document.getElementById('cam-status');
+  const camApp    = document.getElementById('cam-app');
+  const camDot    = document.getElementById('cam-dot');
+  if (camOn) {
+    camRow.className    = 'priv-row active-cam';
+    camStatus.textContent = 'ACTIVE';
+    camStatus.style.color = 'var(--red)';
+    camApp.textContent    = p.cam_app || '';
+    camDot.className      = 'priv-dot on-cam';
+    // Banner
+    if (!_camDismissed) {
+      document.getElementById('cam-alert-app').textContent = p.cam_app || 'Unknown';
+      document.getElementById('cam-alert').style.display   = 'flex';
+      document.getElementById('privacy-banner').classList.add('show');
+    }
+  } else {
+    camRow.className      = 'priv-row';
+    camStatus.textContent = 'INACTIVE';
+    camStatus.style.color = 'var(--green)';
+    camApp.textContent    = '';
+    camDot.className      = 'priv-dot off';
+    document.getElementById('cam-alert').style.display = 'none';
+    _camDismissed = false;
+  }
+
+  // ── Mic card ──
+  const micRow    = document.getElementById('mic-row');
+  const micStatus = document.getElementById('mic-status');
+  const micApp    = document.getElementById('mic-app');
+  const micDot    = document.getElementById('mic-dot');
+  if (micOn) {
+    micRow.className    = 'priv-row active-mic';
+    micStatus.textContent = 'ACTIVE';
+    micStatus.style.color = 'var(--orange)';
+    micApp.textContent    = (p.mic_apps || []).join(', ');
+    micDot.className      = 'priv-dot on-mic';
+    // Banner
+    if (!_micDismissed) {
+      document.getElementById('mic-alert-app').textContent = (p.mic_apps || []).join(', ') || 'Unknown';
+      document.getElementById('mic-alert').style.display   = 'flex';
+      document.getElementById('privacy-banner').classList.add('show');
+    }
+  } else {
+    micRow.className      = 'priv-row';
+    micStatus.textContent = 'INACTIVE';
+    micStatus.style.color = 'var(--green)';
+    micApp.textContent    = '';
+    micDot.className      = 'priv-dot off';
+    document.getElementById('mic-alert').style.display = 'none';
+    _micDismissed = false;
+  }
+
+  // Hide banner if both dismissed or both off
+  const camVisible = document.getElementById('cam-alert').style.display !== 'none';
+  const micVisible = document.getElementById('mic-alert').style.display !== 'none';
+  if (!camVisible && !micVisible) {
+    document.getElementById('privacy-banner').classList.remove('show');
+  }
+}
+
+function dismissAlert(type) {
+  if (type === 'cam') {
+    _camDismissed = true;
+    document.getElementById('cam-alert').style.display = 'none';
+  } else {
+    _micDismissed = true;
+    document.getElementById('mic-alert').style.display = 'none';
+  }
+  const camVisible = document.getElementById('cam-alert').style.display !== 'none';
+  const micVisible = document.getElementById('mic-alert').style.display !== 'none';
+  if (!camVisible && !micVisible)
+    document.getElementById('privacy-banner').classList.remove('show');
+}
+
+// ─── SOCKET.IO ───────────────────────────────────────────────────────────────
+const socket = io();
+
+socket.on('connect', () => {
+  document.getElementById('conn-pulse').style.background = 'var(--green)';
+  document.getElementById('conn-pulse').style.boxShadow  = '0 0 6px var(--green)';
+});
+
+socket.on('disconnect', () => {
+  document.getElementById('conn-pulse').style.background = '#ff2244';
+  document.getElementById('conn-pulse').style.boxShadow  = '0 0 6px #ff2244';
+});
+
+socket.on('init', data => {
+  if (data.gpu)      updateGPU(data.gpu);
+  if (data.routes)   updateRoutes(data.routes);
+  if (data.listening) updateListening(data.listening);
+  if (data.blocked_ips) updateBlocked(data.blocked_ips);
+  if (data.events)   populateEvents(data.events.reverse());
+  // Set hostname from page title fallback
+  try {
+    fetch('/api/status').then(r => r.json()).then(() => {});
+  } catch(e) {}
+});
+
+// ─── ACTIVE WEBSITES ─────────────────────────────────────────────────────────
+function updateActiveSites(sites) {
+  const feed  = document.getElementById('sites-feed');
+  const count = document.getElementById('sites-count');
+  count.textContent = sites.length;
+
+  if (!sites || sites.length === 0) {
+    feed.innerHTML = '<div class="empty">No external connections active...</div>';
+    return;
+  }
+
+  feed.innerHTML = sites.map(s => {
+    const host     = s.hostname !== s.ip ? s.hostname : s.ip;
+    const isWeb    = s.web;
+    const icon     = s.threat === 'CRITICAL' ? '🔴' :
+                     s.threat === 'HIGH'     ? '🟠' :
+                     s.threat === 'MEDIUM'   ? '🟡' :
+                     isWeb                   ? '🌐' : '🔵';
+    const age      = s.age_s < 60 ? `${s.age_s}s` : `${Math.floor(s.age_s/60)}m`;
+    const portProto = s.port === 443 ? 'HTTPS' :
+                      s.port === 80  ? 'HTTP'  :
+                      `PORT ${s.port}`;
+    const hostClass = s.threat !== 'NONE' ? 'site-host threat-host' : 'site-host';
+    return `<div class="site-row">
+      <span class="site-icon">${icon}</span>
+      <div style="flex:1;overflow:hidden">
+        <div class="${hostClass}" title="${esc(s.ip)}">${esc(host)}</div>
+        <div class="site-sub">${esc(s.ip)} &nbsp;·&nbsp; ${portProto} &nbsp;·&nbsp; ${esc(s.process)}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="site-proc">${esc(s.process)}</div>
+        <div class="site-age">⏱ ${age} &nbsp; ×${s.count}</div>
+      </div>
+      ${s.threat !== 'NONE' ? `<button class="btn btn-red btn-xs" onclick="blockIPDirect('${esc(s.ip)}')">BLOCK</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+socket.on('metrics', data => {
+  updateCPU(data.cpu);
+  updateRAM(data.memory);
+  updateNetwork(data.network);
+  updateDisk(data.disk);
+  updateConnections(data.connections, data.conn_count, data.high_count, data.medium_count);
+  updateThreat(data.threat_level, data.high_count);
+  if (data.active_sites) updateActiveSites(data.active_sites);
+  if (data.privacy)      updatePrivacy(data.privacy);
+
+  document.getElementById('s-ext').textContent    = data.external_conns;
+  document.getElementById('hdr-events').textContent = data.event_count;
+  document.getElementById('last-update').textContent = data.ts;
+
+  // Set hostname once
+  if (!document.getElementById('hostname-tag').dataset.set) {
+    document.getElementById('hostname-tag').textContent =
+      window.location.hostname.toUpperCase() || 'LOCALHOST';
+    document.getElementById('hostname-tag').dataset.set = '1';
+    document.title = 'SIEM — ' + (window.location.hostname || 'localhost').toUpperCase();
+  }
+});
+
+socket.on('new_event', evt => {
+  addEventToFeed(evt);
+  document.getElementById('event-count').textContent = eventSet.size;
+});
+
+socket.on('blocked_update', ips => {
+  updateBlocked(ips);
+});
+
+socket.on('routes_update', routes => {
+  updateRoutes(routes);
+});
+
+socket.on('listening_update', ports => {
+  updateListening(ports);
+});
+
+// ─── INVESTIGATION MODAL ─────────────────────────────────────────────────────
+
+let _invCurrentIP = '';
+
+function openInvestigation(ip, severity, description) {
+  if (!ip || ip === 'N/A' || ip === 'localhost') return;
+  _invCurrentIP = ip;
+
+  document.getElementById('inv-overlay').classList.add('show');
+  document.getElementById('inv-body').innerHTML =
+    `<div class="inv-loading"><div class="spinner"></div>Investigating ${esc(ip)}...</div>`;
+
+  // Prefill header while loading
+  document.getElementById('inv-ip-text').textContent     = ip;
+  document.getElementById('inv-flag-text').textContent   = '🌐';
+  document.getElementById('inv-host-text').textContent   = 'Resolving...';
+  document.getElementById('inv-loc-text').textContent    = '';
+  document.getElementById('inv-badges').innerHTML        = '';
+  document.getElementById('inv-footer-threat').innerHTML =
+    `${severityBadge(severity)} <span style="color:var(--textdim);margin-left:8px">${esc(description)}</span>`;
+
+  fetch(`/api/investigate/${encodeURIComponent(ip)}`)
+    .then(r => r.json())
+    .then(renderInvestigation)
+    .catch(e => {
+      document.getElementById('inv-body').innerHTML =
+        `<div class="inv-loading" style="color:var(--red)">Error: ${esc(String(e))}</div>`;
+    });
+}
+
+function renderInvestigation(data) {
+  const geo = data.geo || {};
+  const flag = geo.flag || '🌐';
+  const country = geo.country || 'Unknown';
+  const city    = geo.city    || '';
+  const region  = geo.regionName || '';
+  const isp     = geo.isp     || '';
+  const org     = geo.org     || '';
+  const asn     = geo.as      || '';
+
+  // Header
+  document.getElementById('inv-flag-text').textContent = flag;
+  document.getElementById('inv-ip-text').textContent   = data.ip;
+  document.getElementById('inv-host-text').textContent = data.rdns !== data.ip ? data.rdns : '';
+  document.getElementById('inv-loc-text').textContent  =
+    [city, region, country].filter(Boolean).join(', ');
+
+  const badges = [];
+  if (country)  badges.push(`${flag} ${esc(country)}`);
+  if (isp)      badges.push(`ISP: ${esc(isp)}`);
+  if (asn)      badges.push(esc(asn));
+  document.getElementById('inv-badges').innerHTML = badges
+    .map(b => `<span class="inv-badge">${b}</span>`).join('');
+
+  // Body sections
+  let html = '';
+
+  // ── Geo Details ──
+  html += `<div class="inv-section">
+    <div class="inv-section-title">Origin Details</div>
+    <div class="geo-grid">
+      <div class="geo-item"><div class="gi-label">Country</div><div class="gi-val">${flag} ${esc(country)}</div></div>
+      <div class="geo-item"><div class="gi-label">City / Region</div><div class="gi-val">${esc(city || '—')}${region ? ', '+esc(region) : ''}</div></div>
+      <div class="geo-item"><div class="gi-label">ISP</div><div class="gi-val">${esc(isp || '—')}</div></div>
+      <div class="geo-item"><div class="gi-label">Organisation</div><div class="gi-val">${esc(org || '—')}</div></div>
+      <div class="geo-item"><div class="gi-label">ASN</div><div class="gi-val">${esc(asn || '—')}</div></div>
+      <div class="geo-item"><div class="gi-label">Reverse DNS</div><div class="gi-val" style="font-size:12px">${esc(data.rdns || '—')}</div></div>
+    </div>
+  </div>`;
+
+  // ── Active Connections ──
+  if (data.connections && data.connections.length > 0) {
+    html += `<div class="inv-section">
+      <div class="inv-section-title">Active Connections (${data.connections.length})</div>
+      <table class="hop-table">
+        <thead><tr><th>LOCAL</th><th>REMOTE</th><th>STATUS</th><th>PROCESS</th></tr></thead>
+        <tbody>${data.connections.map(c => `
+          <tr>
+            <td style="color:var(--textdim);font-size:12px">${esc(c.local)}</td>
+            <td style="color:var(--cyan);font-size:12px">${esc(c.remote)}</td>
+            <td style="color:${c.status==='ESTABLISHED'?'var(--green)':'var(--yellow)'}">${esc(c.status)}</td>
+            <td style="color:var(--text)">${esc(c.process)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  // ── Traceroute ──
+  if (data.traceroute && data.traceroute.length > 0) {
+    const hopRows = data.traceroute.map(h => {
+      const ms = h.ms ? parseFloat(h.ms) : null;
+      const msClass = !ms ? 'dead' : ms > 150 ? 'slow' : '';
+      const msText  = ms ? `${h.ms} ms` : '*';
+      const hopGeo  = h.geo || {};
+      const geoStr  = [hopGeo.flag, hopGeo.city, hopGeo.country, hopGeo.isp]
+                        .filter(Boolean).join(' · ');
+      return `<tr>
+        <td class="hop-num">${h.hop}</td>
+        <td class="hop-host">${h.ip && h.ip !== h.host ? `${esc(h.host)}<br><span style="color:var(--textdim);font-size:11px">${esc(h.ip)}</span>` : esc(h.host||'*')}</td>
+        <td class="hop-geo">${esc(geoStr)}</td>
+        <td class="hop-ms ${msClass}">${msText}</td>
+      </tr>`;
+    }).join('');
+    html += `<div class="inv-section">
+      <div class="inv-section-title">Traceroute Path (${data.traceroute.length} hops)</div>
+      <table class="hop-table">
+        <thead><tr><th>#</th><th>HOST / IP</th><th>LOCATION</th><th>LATENCY</th></tr></thead>
+        <tbody>${hopRows}</tbody>
+      </table>
+    </div>`;
+  } else {
+    html += `<div class="inv-section">
+      <div class="inv-section-title">Traceroute Path</div>
+      <div class="inv-loading" style="padding:20px">
+        <div class="spinner"></div>Running traceroute... (may take up to 30s)
+      </div>
+    </div>`;
+  }
+
+  // ── Whois ──
+  if (data.whois_summary) {
+    html += `<div class="inv-section">
+      <div class="inv-section-title">Whois</div>
+      <pre id="inv-whois">${esc(data.whois_summary)}</pre>
+    </div>`;
+  }
+
+  document.getElementById('inv-body').innerHTML = html;
+}
+
+function closeInvestigation() {
+  document.getElementById('inv-overlay').classList.remove('show');
+  _invCurrentIP = '';
+}
+
+function blockFromModal() {
+  if (!_invCurrentIP) return;
+  fetch('/api/block', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ip: _invCurrentIP}),
+  }).then(() => {
+    closeInvestigation();
+    // Show brief confirmation
+    const badge = document.getElementById('threat-badge');
+    const orig  = badge.textContent;
+    badge.textContent = `BLOCKED: ${_invCurrentIP}`;
+    setTimeout(() => { badge.textContent = orig; }, 2500);
+  });
+}
+
+// Close on overlay click
+document.getElementById('inv-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('inv-overlay')) closeInvestigation();
+});
+
+// Keyboard close
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeInvestigation();
+});
+</script>
+
+<!-- ── INVESTIGATION MODAL ── -->
+<div id="inv-overlay">
+  <div id="inv-modal">
+    <div id="inv-header">
+      <span class="inv-flag" id="inv-flag-text">🌐</span>
+      <div class="inv-meta">
+        <div class="inv-ip" id="inv-ip-text">—</div>
+        <div class="inv-host" id="inv-host-text"></div>
+        <div class="inv-loc" id="inv-loc-text"></div>
+        <div class="inv-badge-row" id="inv-badges"></div>
+      </div>
+      <button id="inv-close" onclick="closeInvestigation()">✕</button>
+    </div>
+    <div id="inv-body"></div>
+    <div id="inv-footer">
+      <div id="inv-footer-threat"></div>
+      <button class="btn btn-cyan" onclick="navigator.clipboard?.writeText(_invCurrentIP)">📋 Copy IP</button>
+      <button class="btn btn-red" onclick="blockFromModal()">🚫 BLOCK IP</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
