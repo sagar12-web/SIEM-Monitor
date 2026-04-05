@@ -32,7 +32,9 @@ threat_events: deque = deque(maxlen=1000)
 event_id_counter = 0
 
 # Manually added server/disk paths
-_custom_disk_paths: list = []  # list of {'label': str, 'path': str}
+_custom_disk_paths: list = []   # list of {'label': str, 'path': str}
+# System disks removed by user (persists until server restarts)
+_removed_system_disks: set = set()  # set of device strings e.g. 'disk3s1s1'
 
 # Per-IP tracking for threat detection
 # ip -> list of (timestamp, port)
@@ -258,12 +260,15 @@ def get_disk_metrics() -> dict:
     io = psutil.disk_io_counters()
     parts = []
     for p in psutil.disk_partitions():
+        dev = p.device.split('/')[-1]
+        if dev in _removed_system_disks:
+            continue
         try:
             u = psutil.disk_usage(p.mountpoint)
             parts.append({
-                'device':     p.device.split('/')[-1],
+                'device':     dev,
                 'mountpoint': p.mountpoint,
-                'label':      p.device.split('/')[-1],
+                'label':      dev,
                 'total':      _fmt_bytes(u.total),
                 'used':       _fmt_bytes(u.used),
                 'percent':    u.percent,
@@ -747,6 +752,10 @@ def _monitor_loop():
             disk   = get_disk_metrics()
             net_io = get_network_io()
             conns  = get_connections()
+            if not conns:
+                print(f'[DEBUG] get_connections() returned 0 — lsof test:', flush=True)
+                test = subprocess.run(['lsof','-i','TCP','-n','-P'], capture_output=True, text=True, timeout=5)
+                print(f'[DEBUG] lsof returncode={test.returncode} lines={len(test.stdout.splitlines())}', flush=True)
 
             # Fire events for new high-threat connections
             for conn in conns:
@@ -797,7 +806,7 @@ def _monitor_loop():
             socketio.emit('metrics', payload, namespace='/')
 
         except Exception as e:
-            pass
+            print(f'[MONITOR ERROR] {type(e).__name__}: {e}', flush=True)
 
         time.sleep(1)
 
@@ -836,6 +845,24 @@ def api_disk_remove():
     before = len(_custom_disk_paths)
     _custom_disk_paths[:] = [e for e in _custom_disk_paths if e['path'] != path]
     return jsonify({'ok': len(_custom_disk_paths) < before})
+
+@app.route('/api/disk/system-remove', methods=['POST'])
+def api_disk_system_remove():
+    device = (request.get_json() or {}).get('device', '').strip()
+    if not device:
+        return jsonify({'ok': False, 'error': 'device required'}), 400
+    _removed_system_disks.add(device)
+    return jsonify({'ok': True})
+
+@app.route('/api/disk/system-restore', methods=['POST'])
+def api_disk_system_restore():
+    device = (request.get_json() or {}).get('device', '').strip()
+    _removed_system_disks.discard(device)
+    return jsonify({'ok': True, 'removed': list(_removed_system_disks)})
+
+@app.route('/api/disk/removed', methods=['GET'])
+def api_disk_removed():
+    return jsonify({'removed': list(_removed_system_disks)})
 
 @app.route('/api/block', methods=['POST'])
 def api_block():

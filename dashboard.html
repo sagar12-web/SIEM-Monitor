@@ -83,7 +83,7 @@ body {
 .grid-main { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 10px; }
 
 /* ── STAT ROW ── */
-.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-items: start; }
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-items: stretch; }
 
 /* ── CARD ── */
 .card {
@@ -575,7 +575,7 @@ tr:hover td { background: rgba(0,212,255,.04); }
   <div class="stat-row">
 
     <!-- CPU -->
-    <div class="card" style="--card-accent:var(--green)">
+    <div class="card" style="--card-accent:var(--green);display:flex;flex-direction:column">
       <div class="card-title"><div class="dot" style="background:var(--green);box-shadow:0 0 5px var(--green)"></div>CPU</div>
       <!-- Main metric row -->
       <div style="display:flex;align-items:center;gap:12px">
@@ -602,7 +602,7 @@ tr:hover td { background: rgba(0,212,255,.04); }
     </div>
 
     <!-- RAM -->
-    <div class="card" style="--card-accent:var(--cyan)">
+    <div class="card" style="--card-accent:var(--cyan);display:flex;flex-direction:column">
       <div class="card-title"><div class="dot" style="background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div>MEMORY</div>
       <!-- Main metric row -->
       <div style="display:flex;align-items:center;gap:12px">
@@ -638,11 +638,11 @@ tr:hover td { background: rgba(0,212,255,.04); }
     </div>
 
     <!-- NETWORK SPEED -->
-    <div class="card" style="--card-accent:var(--orange)">
+    <div class="card" style="--card-accent:var(--orange);display:flex;flex-direction:column">
       <div class="card-title"><div class="dot" style="background:var(--orange);box-shadow:0 0 5px var(--orange)"></div>NETWORK I/O</div>
       <!-- Upload / Download side by side -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px">
-        <div style="background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:6px;padding:8px 10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px;flex:1">
+        <div style="background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between">
           <div style="font-size:10px;color:var(--textdim);letter-spacing:.5px;margin-bottom:2px">↑ UPLOAD</div>
           <div style="font-size:22px;font-weight:800;color:var(--green);line-height:1;letter-spacing:-1px" id="up-val">0</div>
           <div style="font-size:10px;color:var(--textdim);margin-bottom:6px">KB/s</div>
@@ -651,7 +651,7 @@ tr:hover td { background: rgba(0,212,255,.04); }
           </div>
           <div style="font-size:10px;color:var(--textdim);margin-top:5px">SENT <span id="net-sent" style="color:var(--green);font-weight:600">—</span></div>
         </div>
-        <div style="background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.15);border-radius:6px;padding:8px 10px">
+        <div style="background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.15);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between">
           <div style="font-size:10px;color:var(--textdim);letter-spacing:.5px;margin-bottom:2px">↓ DOWNLOAD</div>
           <div style="font-size:22px;font-weight:800;color:var(--cyan);line-height:1;letter-spacing:-1px" id="dn-val">0</div>
           <div style="font-size:10px;color:var(--textdim);margin-bottom:6px">KB/s</div>
@@ -664,17 +664,20 @@ tr:hover td { background: rgba(0,212,255,.04); }
     </div>
 
     <!-- DISK -->
-    <div class="card" style="--card-accent:var(--yellow)">
+    <div class="card" style="--card-accent:var(--yellow);display:flex;flex-direction:column">
       <div class="card-title" style="justify-content:space-between">
         <div style="display:flex;align-items:center;gap:8px">
           <div class="dot" style="background:var(--yellow);box-shadow:0 0 5px var(--yellow)"></div>DISK
         </div>
         <button onclick="openAddDisk()" title="Add server / custom path" style="background:rgba(255,204,0,.12);border:1px solid var(--yellow);color:var(--yellow);border-radius:5px;padding:3px 10px;cursor:pointer;font-size:13px;font-weight:700;line-height:1">+ Add Server</button>
       </div>
-      <div id="disk-parts" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
-      <div id="disk-hidden-bar" style="display:none;align-items:center;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--textdim)">
+      <div id="disk-parts" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;overflow-y:auto;flex:1;padding-right:2px"></div>
+      <div id="disk-hidden-bar" style="display:none;align-items:center;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--textdim);flex-shrink:0">
         <span>0 hidden</span>
-        <button onclick="showAllDisks()" style="background:none;border:1px solid var(--border2);color:var(--textdim);border-radius:3px;padding:1px 7px;cursor:pointer;font-size:10px">Show All</button>
+        <div style="display:flex;gap:5px">
+          <button onclick="showAllHidden()" style="background:none;border:1px solid rgba(0,255,136,.3);color:var(--green);border-radius:3px;padding:1px 7px;cursor:pointer;font-size:10px">Show Hidden</button>
+          <button onclick="restoreAllDisks()" style="background:none;border:1px solid rgba(255,136,0,.3);color:#ffaa00;border-radius:3px;padding:1px 7px;cursor:pointer;font-size:10px">Restore Removed</button>
+        </div>
       </div>
     </div>
 
@@ -1021,16 +1024,35 @@ function updateNetwork(net) {
 // ─── DISK UPDATE ─────────────────────────────────────────────────────────────
 const _serverIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;flex-shrink:0"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`;
 
-// Hidden disks stored in localStorage (persists across reloads)
+// Removed system disks (synced from backend)
+let _removedSystemDisks = new Set();
+
+// Hidden disks (frontend only, persisted in localStorage)
 let _hiddenDisks = new Set(JSON.parse(localStorage.getItem('siem_hidden_disks') || '[]'));
 
 function hideDisk(device) {
   _hiddenDisks.add(device);
   localStorage.setItem('siem_hidden_disks', JSON.stringify([..._hiddenDisks]));
-  document.getElementById('disk-parts').querySelectorAll('[data-device]').forEach(el => {
-    if (el.dataset.device === device) el.remove();
-  });
   _refreshDiskFooter();
+}
+
+function showAllHidden() {
+  _hiddenDisks.clear();
+  localStorage.removeItem('siem_hidden_disks');
+  _refreshDiskFooter();
+}
+
+// Load removed list from backend on startup
+fetch('/api/disk/removed').then(r => r.json()).then(d => {
+  _removedSystemDisks = new Set(d.removed || []);
+  _refreshDiskFooter();
+}).catch(() => {});
+
+function removeSystemDisk(device) {
+  fetch('/api/disk/system-remove', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({device})})
+    .then(r => r.json()).then(d => {
+      if (d.ok) { _removedSystemDisks.add(device); _refreshDiskFooter(); }
+    });
 }
 
 function removeDisk(path) {
@@ -1038,17 +1060,21 @@ function removeDisk(path) {
     .then(r => r.json()).then(d => { if (!d.ok) alert('Could not remove disk'); });
 }
 
-function showAllDisks() {
-  _hiddenDisks.clear();
-  localStorage.removeItem('siem_hidden_disks');
-  document.getElementById('disk-hidden-bar').style.display = 'none';
+function restoreAllDisks() {
+  const promises = [..._removedSystemDisks].map(device =>
+    fetch('/api/disk/system-restore', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({device})})
+  );
+  Promise.all(promises).then(() => { _removedSystemDisks.clear(); _refreshDiskFooter(); });
 }
 
 function _refreshDiskFooter() {
   const bar = document.getElementById('disk-hidden-bar');
-  if (_hiddenDisks.size > 0) {
+  const parts = [];
+  if (_hiddenDisks.size > 0) parts.push(`${_hiddenDisks.size} hidden`);
+  if (_removedSystemDisks.size > 0) parts.push(`${_removedSystemDisks.size} removed`);
+  if (parts.length > 0) {
     bar.style.display = 'flex';
-    bar.querySelector('span').textContent = `${_hiddenDisks.size} hidden`;
+    bar.querySelector('span').textContent = parts.join(' · ');
   } else {
     bar.style.display = 'none';
   }
@@ -1061,14 +1087,15 @@ function updateDisk(disk) {
     _refreshDiskFooter();
     return;
   }
-  const visible = disk.partitions.filter(p => !_hiddenDisks.has(p.device));
+  const visible = disk.partitions.filter(p => !_removedSystemDisks.has(p.device) && !_hiddenDisks.has(p.device));
   container.innerHTML = visible.map(p => {
     const col = p.percent > 85 ? '#ff2244' : p.percent > 70 ? '#ffaa00' : '#ffcc00';
     const errMsg = p.error ? `<div style="color:#ff4466;font-size:11px;margin-top:2px">${esc(p.error)}</div>` : '';
-    // custom → red ✕ calls removeDisk (backend); system → eye-slash calls hideDisk (frontend)
-    const actionBtn = p.custom
-      ? `<button onclick="removeDisk('${esc(p.device)}')" title="Remove custom disk" style="background:none;border:none;color:#ff4466;cursor:pointer;font-size:12px;padding:0 0 0 4px;line-height:1;opacity:.7" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">✕</button>`
-      : `<button onclick="hideDisk('${esc(p.device)}')" title="Hide this disk" style="background:none;border:none;color:var(--textdim);cursor:pointer;font-size:12px;padding:0 0 0 4px;line-height:1;opacity:.5" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">✕</button>`;
+    const hideBtn = `<button onclick="hideDisk('${esc(p.device)}')" title="Hide this disk" style="background:none;border:none;color:var(--textdim);cursor:pointer;font-size:11px;padding:0 0 0 2px;line-height:1;opacity:.5" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">🙈</button>`;
+    const removeBtn = p.custom
+      ? `<button onclick="removeDisk('${esc(p.device)}')" title="Remove custom disk" style="background:none;border:none;color:#ff4466;cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1;opacity:.7" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">✕</button>`
+      : `<button onclick="removeSystemDisk('${esc(p.device)}')" title="Remove this disk" style="background:none;border:none;color:#ff4466;cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1;opacity:.6" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">✕</button>`;
+    const actionBtn = hideBtn + removeBtn;
     return `
     <div data-device="${esc(p.device)}" style="border-left:2px solid ${p.custom ? 'var(--cyan)' : 'var(--yellow)'};padding-left:7px">
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--textdim);margin-bottom:2px">
@@ -1437,7 +1464,7 @@ socket.on('metrics', data => {
   updateCPU(data.cpu);
   updateRAM(data.memory);
   updateNetwork(data.network);
-  updateDisk(data.disk);
+  try { updateDisk(data.disk); } catch(e) { console.error('[disk]', e); }
   updateConnections(data.connections, data.conn_count, data.high_count, data.medium_count);
   updateThreat(data.threat_level, data.high_count);
   if (data.active_sites) updateActiveSites(data.active_sites);
