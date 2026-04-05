@@ -248,6 +248,7 @@ def get_memory_metrics() -> dict:
         'percent':      vm.percent,
         'total_fmt':    _fmt_bytes(vm.total),
         'used_fmt':     _fmt_bytes(vm.used),
+        'free_fmt':     _fmt_bytes(vm.available),
         'swap_total':   swap.total,
         'swap_used':    swap.used,
         'swap_percent': swap.percent,

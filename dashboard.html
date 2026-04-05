@@ -577,54 +577,62 @@ tr:hover td { background: rgba(0,212,255,.04); }
     <!-- CPU -->
     <div class="card" style="--card-accent:var(--green)">
       <div class="card-title"><div class="dot" style="background:var(--green);box-shadow:0 0 5px var(--green)"></div>CPU</div>
-      <div class="gauge-wrap">
+      <!-- Main metric row -->
+      <div style="display:flex;align-items:center;gap:12px">
         <div class="gauge-circle">
-          <svg width="60" height="60" viewBox="0 0 60 60">
-            <circle cx="30" cy="30" r="24" stroke="#1e2d40" stroke-width="5" fill="none"/>
-            <circle id="cpu-arc" cx="30" cy="30" r="24"
-              stroke="#00ff88" stroke-width="5" fill="none"
-              stroke-dasharray="151 151" stroke-linecap="round"/>
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="26" stroke="#1a2535" stroke-width="6" fill="none"/>
+            <circle id="cpu-arc" cx="32" cy="32" r="26" stroke="#00ff88" stroke-width="6" fill="none"
+              stroke-dasharray="163 163" stroke-linecap="round"/>
           </svg>
-          <div class="val" id="cpu-pct" style="font-size:11px">0%</div>
+          <div class="val" id="cpu-pct" style="font-size:11px;color:var(--green)">0%</div>
         </div>
-        <div class="gauge-info">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px">
-            <div>
-              <div class="label">FREQ</div>
-              <div class="value" id="cpu-freq" style="color:var(--green)">—</div>
-            </div>
-            <div>
-              <div class="label">LOAD</div>
-              <div class="value" id="cpu-load">—</div>
-            </div>
-          </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:26px;font-weight:800;color:var(--green);line-height:1;letter-spacing:-1px" id="cpu-pct-big">0%</div>
+          <div style="font-size:11px;color:var(--textdim);margin-top:3px" id="cpu-freq">— MHz</div>
+          <div style="font-size:11px;color:var(--textdim);margin-top:1px">LOAD <span id="cpu-load" style="color:var(--text)">—</span></div>
         </div>
       </div>
-      <div class="core-bars" id="core-bars"></div>
+      <!-- Full-width CPU bar -->
+      <div style="margin-top:8px;background:var(--bg3);border-radius:3px;height:5px;overflow:hidden">
+        <div id="cpu-full-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--green),#00cc66);border-radius:3px;transition:width .5s"></div>
+      </div>
+      <!-- Core bars -->
+      <div class="core-bars" id="core-bars" style="margin-top:6px"></div>
     </div>
 
     <!-- RAM -->
     <div class="card" style="--card-accent:var(--cyan)">
       <div class="card-title"><div class="dot" style="background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div>MEMORY</div>
-      <div class="gauge-wrap">
+      <!-- Main metric row -->
+      <div style="display:flex;align-items:center;gap:12px">
         <div class="gauge-circle">
-          <svg width="60" height="60" viewBox="0 0 60 60">
-            <circle cx="30" cy="30" r="24" stroke="#1e2d40" stroke-width="5" fill="none"/>
-            <circle id="ram-arc" cx="30" cy="30" r="24"
-              stroke="#00d4ff" stroke-width="5" fill="none"
-              stroke-dasharray="151 151" stroke-linecap="round"/>
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="26" stroke="#1a2535" stroke-width="6" fill="none"/>
+            <circle id="ram-arc" cx="32" cy="32" r="26" stroke="#00d4ff" stroke-width="6" fill="none"
+              stroke-dasharray="163 163" stroke-linecap="round"/>
           </svg>
-          <div class="val" id="ram-pct" style="color:var(--cyan);font-size:11px">0%</div>
+          <div class="val" id="ram-pct" style="font-size:11px;color:var(--cyan)">0%</div>
         </div>
-        <div class="gauge-info">
-          <div>
-            <div class="label">USED / TOTAL</div>
-            <div class="value big" id="ram-used" style="font-size:13px;white-space:normal">—</div>
-          </div>
-          <div style="margin-top:5px">
-            <div class="label">SWAP</div>
-            <div class="value" id="ram-swap">—</div>
-          </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:26px;font-weight:800;color:var(--cyan);line-height:1;letter-spacing:-1px" id="ram-pct-big">0%</div>
+          <div style="font-size:11px;color:var(--textdim);margin-top:3px" id="ram-used">— / —</div>
+          <div style="font-size:11px;color:var(--textdim);margin-top:1px">SWAP <span id="ram-swap" style="color:var(--text)">—</span></div>
+        </div>
+      </div>
+      <!-- Full-width RAM bar -->
+      <div style="margin-top:8px;background:var(--bg3);border-radius:3px;height:5px;overflow:hidden">
+        <div id="ram-full-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),#0099bb);border-radius:3px;transition:width .5s"></div>
+      </div>
+      <!-- Mini breakdown row -->
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <div style="text-align:center;flex:1;padding:5px 4px;background:rgba(0,212,255,.07);border-radius:4px;margin-right:4px">
+          <div style="font-size:10px;color:var(--textdim);letter-spacing:.5px">USED</div>
+          <div style="font-size:12px;color:var(--cyan);font-weight:600" id="ram-used-val">—</div>
+        </div>
+        <div style="text-align:center;flex:1;padding:5px 4px;background:rgba(0,212,255,.07);border-radius:4px;margin-left:4px">
+          <div style="font-size:10px;color:var(--textdim);letter-spacing:.5px">FREE</div>
+          <div style="font-size:12px;color:var(--textdim);font-weight:600" id="ram-free-val">—</div>
         </div>
       </div>
     </div>
@@ -632,27 +640,26 @@ tr:hover td { background: rgba(0,212,255,.04); }
     <!-- NETWORK SPEED -->
     <div class="card" style="--card-accent:var(--orange)">
       <div class="card-title"><div class="dot" style="background:var(--orange);box-shadow:0 0 5px var(--orange)"></div>NETWORK I/O</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
-        <div style="background:var(--bg3);border-radius:5px;padding:7px 8px">
-          <div style="color:var(--textdim);font-size:11px;letter-spacing:.5px;margin-bottom:4px">↑ UPLOAD</div>
-          <div style="color:var(--green);font-size:18px;font-weight:700;line-height:1" id="up-val">0</div>
-          <div style="color:var(--textdim);font-size:10px;margin-bottom:5px">KB/s</div>
-          <div style="background:rgba(0,0,0,.3);border-radius:2px;height:4px;overflow:hidden">
-            <div id="up-bar" style="height:100%;background:var(--green);width:0%;transition:width .5s;border-radius:2px"></div>
+      <!-- Upload / Download side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px">
+        <div style="background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:6px;padding:8px 10px">
+          <div style="font-size:10px;color:var(--textdim);letter-spacing:.5px;margin-bottom:2px">↑ UPLOAD</div>
+          <div style="font-size:22px;font-weight:800;color:var(--green);line-height:1;letter-spacing:-1px" id="up-val">0</div>
+          <div style="font-size:10px;color:var(--textdim);margin-bottom:6px">KB/s</div>
+          <div style="background:rgba(0,0,0,.25);border-radius:3px;height:4px;overflow:hidden">
+            <div id="up-bar" style="height:100%;background:linear-gradient(90deg,var(--green),#00cc66);width:0%;transition:width .5s;border-radius:3px"></div>
           </div>
+          <div style="font-size:10px;color:var(--textdim);margin-top:5px">SENT <span id="net-sent" style="color:var(--green);font-weight:600">—</span></div>
         </div>
-        <div style="background:var(--bg3);border-radius:5px;padding:7px 8px">
-          <div style="color:var(--textdim);font-size:11px;letter-spacing:.5px;margin-bottom:4px">↓ DOWNLOAD</div>
-          <div style="color:var(--cyan);font-size:18px;font-weight:700;line-height:1" id="dn-val">0</div>
-          <div style="color:var(--textdim);font-size:10px;margin-bottom:5px">KB/s</div>
-          <div style="background:rgba(0,0,0,.3);border-radius:2px;height:4px;overflow:hidden">
-            <div id="dn-bar" style="height:100%;background:var(--cyan);width:0%;transition:width .5s;border-radius:2px"></div>
+        <div style="background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.15);border-radius:6px;padding:8px 10px">
+          <div style="font-size:10px;color:var(--textdim);letter-spacing:.5px;margin-bottom:2px">↓ DOWNLOAD</div>
+          <div style="font-size:22px;font-weight:800;color:var(--cyan);line-height:1;letter-spacing:-1px" id="dn-val">0</div>
+          <div style="font-size:10px;color:var(--textdim);margin-bottom:6px">KB/s</div>
+          <div style="background:rgba(0,0,0,.25);border-radius:3px;height:4px;overflow:hidden">
+            <div id="dn-bar" style="height:100%;background:linear-gradient(90deg,var(--cyan),#0099bb);width:0%;transition:width .5s;border-radius:3px"></div>
           </div>
+          <div style="font-size:10px;color:var(--textdim);margin-top:5px">RECV <span id="net-recv" style="color:var(--cyan);font-weight:600">—</span></div>
         </div>
-      </div>
-      <div style="display:flex;gap:12px;font-size:11px;color:var(--textdim);margin-top:7px;padding-top:6px;border-top:1px solid var(--border)">
-        <span>↑ SENT: <span id="net-sent" style="color:var(--green)">—</span></span>
-        <span>↓ RECV: <span id="net-recv" style="color:var(--cyan)">—</span></span>
       </div>
     </div>
 
@@ -899,7 +906,7 @@ function updateChart(history) {
 }
 
 // ─── GAUGE ARC HELPER ────────────────────────────────────────────────────────
-const CIRC = 2 * Math.PI * 24;  // r=24
+const CIRC = 2 * Math.PI * 26;  // r=26
 function setArc(id, pct) {
   const filled = (pct / 100) * CIRC;
   document.getElementById(id).setAttribute('stroke-dasharray', `${filled} ${CIRC}`);
@@ -925,10 +932,23 @@ function severityBadge(sev) {
 // ─── CPU UPDATE ──────────────────────────────────────────────────────────────
 function updateCPU(cpu) {
   const pct = cpu.percent;
+  const col = pct > 85 ? '#ff2244' : pct > 60 ? '#ffaa00' : '#00ff88';
   setArc('cpu-arc', pct);
+  // Small arc label
   const el = document.getElementById('cpu-pct');
   el.textContent = pct + '%';
-  el.className = 'val' + (pct > 85 ? ' crit' : pct > 60 ? ' warn' : '');
+  el.style.color = col;
+  // Big hero number
+  const big = document.getElementById('cpu-pct-big');
+  big.textContent = pct + '%';
+  big.style.color = col;
+  // Full-width bar
+  document.getElementById('cpu-full-bar').style.width = pct + '%';
+  document.getElementById('cpu-full-bar').style.background =
+    pct > 85 ? 'linear-gradient(90deg,#ff2244,#cc0022)'
+    : pct > 60 ? 'linear-gradient(90deg,#ffaa00,#cc8800)'
+    : 'linear-gradient(90deg,var(--green),#00cc66)';
+  // Stats
   document.getElementById('cpu-freq').textContent =
     cpu.freq_mhz ? `${cpu.freq_mhz} MHz` : '—';
   document.getElementById('cpu-load').textContent =
@@ -956,14 +976,29 @@ function updateCPU(cpu) {
 // ─── RAM UPDATE ──────────────────────────────────────────────────────────────
 function updateRAM(mem) {
   const pct = mem.percent;
+  const col = pct > 85 ? '#ff2244' : pct > 70 ? '#ffaa00' : '#00d4ff';
   setArc('ram-arc', pct);
+  // Small arc label
   const el = document.getElementById('ram-pct');
   el.textContent = pct + '%';
-  el.style.color = pct > 85 ? '#ff2244' : pct > 70 ? '#ffaa00' : '#00d4ff';
+  el.style.color = col;
+  // Big hero number
+  const big = document.getElementById('ram-pct-big');
+  big.textContent = pct + '%';
+  big.style.color = col;
+  // Full-width bar
+  document.getElementById('ram-full-bar').style.width = pct + '%';
+  document.getElementById('ram-full-bar').style.background =
+    pct > 85 ? 'linear-gradient(90deg,#ff2244,#cc0022)'
+    : pct > 70 ? 'linear-gradient(90deg,#ffaa00,#cc8800)'
+    : 'linear-gradient(90deg,var(--cyan),#0099bb)';
+  // Stats
   document.getElementById('ram-used').textContent =
     `${mem.used_fmt} / ${mem.total_fmt}`;
+  document.getElementById('ram-used-val').textContent = mem.used_fmt;
+  document.getElementById('ram-free-val').textContent = mem.free_fmt || '—';
   document.getElementById('ram-swap').textContent =
-    `${mem.swap_percent}% (${mem.swap_used ? Math.round(mem.swap_used/1048576)+'MB used' : '0'})`;
+    `${mem.swap_percent}%`;
   document.getElementById('s-ram').textContent = pct + '%';
 }
 
@@ -1033,7 +1068,7 @@ function updateDisk(disk) {
     // custom → red ✕ calls removeDisk (backend); system → eye-slash calls hideDisk (frontend)
     const actionBtn = p.custom
       ? `<button onclick="removeDisk('${esc(p.device)}')" title="Remove custom disk" style="background:none;border:none;color:#ff4466;cursor:pointer;font-size:12px;padding:0 0 0 4px;line-height:1;opacity:.7" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">✕</button>`
-      : `<button onclick="hideDisk('${esc(p.device)}')" title="Hide this disk" style="background:none;border:none;color:var(--textdim);cursor:pointer;font-size:11px;padding:0 0 0 4px;line-height:1;opacity:.5" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">🙈</button>`;
+      : `<button onclick="hideDisk('${esc(p.device)}')" title="Hide this disk" style="background:none;border:none;color:var(--textdim);cursor:pointer;font-size:12px;padding:0 0 0 4px;line-height:1;opacity:.5" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">✕</button>`;
     return `
     <div data-device="${esc(p.device)}" style="border-left:2px solid ${p.custom ? 'var(--cyan)' : 'var(--yellow)'};padding-left:7px">
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--textdim);margin-bottom:2px">
