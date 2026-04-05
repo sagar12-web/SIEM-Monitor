@@ -90,7 +90,17 @@ body {
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 12px;
+  padding: 10px 12px;
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--card-accent, var(--cyan));
+  opacity: .7;
 }
 .card:hover { border-color: var(--border2); }
 .card-title {
@@ -111,10 +121,10 @@ body {
 }
 
 /* ── GAUGE ── */
-.gauge-wrap { display: flex; align-items: center; gap: 10px; }
+.gauge-wrap { display: flex; align-items: center; gap: 12px; }
 .gauge-circle {
   position: relative;
-  width: 70px; height: 70px;
+  width: 60px; height: 60px;
   flex-shrink: 0;
 }
 .gauge-circle svg { transform: rotate(-90deg); }
@@ -128,15 +138,15 @@ body {
 }
 .gauge-circle .val.warn  { color: var(--yellow); }
 .gauge-circle .val.crit  { color: var(--red); }
-.gauge-info { flex: 1; }
-.gauge-info .label { color: var(--textdim); font-size: 12px; margin-bottom: 2px; }
-.gauge-info .value { color: var(--text); font-size: 13px; }
-.gauge-info .big   { font-size: 15px; color: var(--cyan); }
+.gauge-info { flex: 1; min-width: 0; }
+.gauge-info .label { color: var(--textdim); font-size: 11px; margin-bottom: 1px; letter-spacing: .5px; }
+.gauge-info .value { color: var(--text); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gauge-info .big   { font-size: 13px; color: var(--cyan); }
 
 /* ── MINI BARS (per-core) ── */
-.core-bars { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 6px; }
+.core-bars { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 8px; }
 .core-bar {
-  height: 16px; width: 16px;
+  height: 14px; width: 14px;
   background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: 2px;
@@ -565,77 +575,89 @@ tr:hover td { background: rgba(0,212,255,.04); }
   <div class="stat-row">
 
     <!-- CPU -->
-    <div class="card">
-      <div class="card-title"><div class="dot"></div>CPU</div>
+    <div class="card" style="--card-accent:var(--green)">
+      <div class="card-title"><div class="dot" style="background:var(--green);box-shadow:0 0 5px var(--green)"></div>CPU</div>
       <div class="gauge-wrap">
         <div class="gauge-circle">
-          <svg width="70" height="70" viewBox="0 0 70 70">
-            <circle cx="35" cy="35" r="28" stroke="#1e2d40" stroke-width="6" fill="none"/>
-            <circle id="cpu-arc" cx="35" cy="35" r="28"
-              stroke="#00ff88" stroke-width="6" fill="none"
-              stroke-dasharray="176 176" stroke-linecap="round"/>
+          <svg width="60" height="60" viewBox="0 0 60 60">
+            <circle cx="30" cy="30" r="24" stroke="#1e2d40" stroke-width="5" fill="none"/>
+            <circle id="cpu-arc" cx="30" cy="30" r="24"
+              stroke="#00ff88" stroke-width="5" fill="none"
+              stroke-dasharray="151 151" stroke-linecap="round"/>
           </svg>
-          <div class="val" id="cpu-pct">0%</div>
+          <div class="val" id="cpu-pct" style="font-size:11px">0%</div>
         </div>
         <div class="gauge-info">
-          <div class="label">FREQUENCY</div>
-          <div class="value" id="cpu-freq">—</div>
-          <div class="label" style="margin-top:4px">LOAD AVG</div>
-          <div class="value" id="cpu-load">—</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px">
+            <div>
+              <div class="label">FREQ</div>
+              <div class="value" id="cpu-freq" style="color:var(--green)">—</div>
+            </div>
+            <div>
+              <div class="label">LOAD</div>
+              <div class="value" id="cpu-load">—</div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="core-bars" id="core-bars"></div>
     </div>
 
     <!-- RAM -->
-    <div class="card">
+    <div class="card" style="--card-accent:var(--cyan)">
       <div class="card-title"><div class="dot" style="background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div>MEMORY</div>
       <div class="gauge-wrap">
         <div class="gauge-circle">
-          <svg width="70" height="70" viewBox="0 0 70 70">
-            <circle cx="35" cy="35" r="28" stroke="#1e2d40" stroke-width="6" fill="none"/>
-            <circle id="ram-arc" cx="35" cy="35" r="28"
-              stroke="#00d4ff" stroke-width="6" fill="none"
-              stroke-dasharray="176 176" stroke-linecap="round"/>
+          <svg width="60" height="60" viewBox="0 0 60 60">
+            <circle cx="30" cy="30" r="24" stroke="#1e2d40" stroke-width="5" fill="none"/>
+            <circle id="ram-arc" cx="30" cy="30" r="24"
+              stroke="#00d4ff" stroke-width="5" fill="none"
+              stroke-dasharray="151 151" stroke-linecap="round"/>
           </svg>
-          <div class="val" id="ram-pct" style="color:var(--cyan)">0%</div>
+          <div class="val" id="ram-pct" style="color:var(--cyan);font-size:11px">0%</div>
         </div>
         <div class="gauge-info">
-          <div class="label">USED / TOTAL</div>
-          <div class="value big" id="ram-used">—</div>
-          <div class="label" style="margin-top:4px">SWAP</div>
-          <div class="value" id="ram-swap">—</div>
+          <div>
+            <div class="label">USED / TOTAL</div>
+            <div class="value big" id="ram-used" style="font-size:13px;white-space:normal">—</div>
+          </div>
+          <div style="margin-top:5px">
+            <div class="label">SWAP</div>
+            <div class="value" id="ram-swap">—</div>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- NETWORK SPEED -->
-    <div class="card">
+    <div class="card" style="--card-accent:var(--orange)">
       <div class="card-title"><div class="dot" style="background:var(--orange);box-shadow:0 0 5px var(--orange)"></div>NETWORK I/O</div>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
-        <div>
-          <div style="color:var(--textdim);font-size:13px;margin-bottom:4px">↑ UPLOAD KB/s</div>
-          <div style="background:var(--bg3);border-radius:3px;height:10px;overflow:hidden">
-            <div id="up-bar" style="height:100%;background:var(--green);width:0%;transition:width .5s;border-radius:3px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+        <div style="background:var(--bg3);border-radius:5px;padding:7px 8px">
+          <div style="color:var(--textdim);font-size:11px;letter-spacing:.5px;margin-bottom:4px">↑ UPLOAD</div>
+          <div style="color:var(--green);font-size:18px;font-weight:700;line-height:1" id="up-val">0</div>
+          <div style="color:var(--textdim);font-size:10px;margin-bottom:5px">KB/s</div>
+          <div style="background:rgba(0,0,0,.3);border-radius:2px;height:4px;overflow:hidden">
+            <div id="up-bar" style="height:100%;background:var(--green);width:0%;transition:width .5s;border-radius:2px"></div>
           </div>
-          <div style="color:var(--green);font-size:13px;margin-top:2px" id="up-val">0</div>
         </div>
-        <div>
-          <div style="color:var(--textdim);font-size:13px;margin-bottom:4px">↓ DOWNLOAD KB/s</div>
-          <div style="background:var(--bg3);border-radius:3px;height:10px;overflow:hidden">
-            <div id="dn-bar" style="height:100%;background:var(--cyan);width:0%;transition:width .5s;border-radius:3px"></div>
+        <div style="background:var(--bg3);border-radius:5px;padding:7px 8px">
+          <div style="color:var(--textdim);font-size:11px;letter-spacing:.5px;margin-bottom:4px">↓ DOWNLOAD</div>
+          <div style="color:var(--cyan);font-size:18px;font-weight:700;line-height:1" id="dn-val">0</div>
+          <div style="color:var(--textdim);font-size:10px;margin-bottom:5px">KB/s</div>
+          <div style="background:rgba(0,0,0,.3);border-radius:2px;height:4px;overflow:hidden">
+            <div id="dn-bar" style="height:100%;background:var(--cyan);width:0%;transition:width .5s;border-radius:2px"></div>
           </div>
-          <div style="color:var(--cyan);font-size:13px;margin-top:2px" id="dn-val">0</div>
         </div>
-        <div style="display:flex;gap:12px;font-size:13px;color:var(--textdim)">
-          <span>SENT: <span id="net-sent" style="color:var(--text)">—</span></span>
-          <span>RECV: <span id="net-recv" style="color:var(--text)">—</span></span>
-        </div>
+      </div>
+      <div style="display:flex;gap:12px;font-size:11px;color:var(--textdim);margin-top:7px;padding-top:6px;border-top:1px solid var(--border)">
+        <span>↑ SENT: <span id="net-sent" style="color:var(--green)">—</span></span>
+        <span>↓ RECV: <span id="net-recv" style="color:var(--cyan)">—</span></span>
       </div>
     </div>
 
     <!-- DISK -->
-    <div class="card">
+    <div class="card" style="--card-accent:var(--yellow)">
       <div class="card-title" style="justify-content:space-between">
         <div style="display:flex;align-items:center;gap:8px">
           <div class="dot" style="background:var(--yellow);box-shadow:0 0 5px var(--yellow)"></div>DISK
@@ -873,7 +895,7 @@ function updateChart(history) {
 }
 
 // ─── GAUGE ARC HELPER ────────────────────────────────────────────────────────
-const CIRC = 2 * Math.PI * 28;
+const CIRC = 2 * Math.PI * 24;  // r=24
 function setArc(id, pct) {
   const filled = (pct / 100) * CIRC;
   document.getElementById(id).setAttribute('stroke-dasharray', `${filled} ${CIRC}`);
