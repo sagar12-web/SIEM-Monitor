@@ -6,9 +6,6 @@ A free, open-source, real-time security dashboard for macOS. Monitor your system
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![Flask](https://img.shields.io/badge/Flask-2.3%2B-green) ![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-black) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
----
-
-![LocalSIEM Dashboard](screenshot.png)
 
 ---
 
@@ -90,7 +87,6 @@ http://localhost:5555
 
 Once the server is running, open `http://localhost:5555` in any browser.
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![Flask](https://img.shields.io/badge/Flask-2.3%2B-green) ![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-black) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ---
 
