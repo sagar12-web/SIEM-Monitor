@@ -83,14 +83,14 @@ body {
 .grid-main { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 10px; }
 
 /* ── STAT ROW ── */
-.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-items: start; }
 
 /* ── CARD ── */
 .card {
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   position: relative;
   overflow: hidden;
 }
@@ -104,11 +104,11 @@ body {
 }
 .card:hover { border-color: var(--border2); }
 .card-title {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--textdim);
   letter-spacing: 2px;
   text-transform: uppercase;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -121,7 +121,7 @@ body {
 }
 
 /* ── GAUGE ── */
-.gauge-wrap { display: flex; align-items: center; gap: 12px; }
+.gauge-wrap { display: flex; align-items: center; gap: 10px; }
 .gauge-circle {
   position: relative;
   width: 60px; height: 60px;
@@ -144,9 +144,9 @@ body {
 .gauge-info .big   { font-size: 13px; color: var(--cyan); }
 
 /* ── MINI BARS (per-core) ── */
-.core-bars { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 8px; }
+.core-bars { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 6px; }
 .core-bar {
-  height: 14px; width: 14px;
+  height: 12px; width: 12px;
   background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: 2px;
@@ -664,7 +664,11 @@ tr:hover td { background: rgba(0,212,255,.04); }
         </div>
         <button onclick="openAddDisk()" title="Add server / custom path" style="background:rgba(255,204,0,.12);border:1px solid var(--yellow);color:var(--yellow);border-radius:5px;padding:3px 10px;cursor:pointer;font-size:13px;font-weight:700;line-height:1">+ Add Server</button>
       </div>
-      <div id="disk-parts" style="display:flex;flex-direction:column;gap:8px;margin-top:6px"></div>
+      <div id="disk-parts" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
+      <div id="disk-hidden-bar" style="display:none;align-items:center;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--textdim)">
+        <span>0 hidden</span>
+        <button onclick="showAllDisks()" style="background:none;border:1px solid var(--border2);color:var(--textdim);border-radius:3px;padding:1px 7px;cursor:pointer;font-size:10px">Show All</button>
+      </div>
     </div>
 
   </div><!-- /stat-row -->
@@ -980,40 +984,74 @@ function updateNetwork(net) {
 }
 
 // ─── DISK UPDATE ─────────────────────────────────────────────────────────────
-const _serverIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:5px;flex-shrink:0"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`;
+const _serverIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;flex-shrink:0"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`;
 
-function updateDisk(disk) {
-  const container = document.getElementById('disk-parts');
-  if (!disk.partitions || disk.partitions.length === 0) {
-    container.innerHTML = '<div style="color:var(--textdim);font-size:13px">No disks found</div>';
-    return;
-  }
-  container.innerHTML = disk.partitions.map(p => {
-    const col = p.percent > 85 ? '#ff2244' : p.percent > 70 ? '#ffaa00' : '#ffcc00';
-    const removeBtn = p.custom ? `<button onclick="removeDisk('${esc(p.device)}')" title="Remove" style="background:none;border:none;color:#ff2244;cursor:pointer;font-size:13px;padding:0 0 0 6px;line-height:1">✕</button>` : '';
-    const errMsg = p.error ? `<div style="color:#ff4466;font-size:12px;margin-top:2px">${esc(p.error)}</div>` : '';
-    return `
-    <div style="border-left:2px solid ${p.custom ? 'var(--cyan)' : 'var(--yellow)'};padding-left:8px">
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--textdim);margin-bottom:3px">
-        <span style="display:flex;align-items:center;overflow:hidden;max-width:72%">
-          ${_serverIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.mountpoint)}">${esc(p.label || p.device)}</span>${p.custom ? '<span style="font-size:10px;color:var(--cyan);margin-left:5px;opacity:.7">custom</span>' : ''}
-        </span>
-        <span style="display:flex;align-items:center;gap:4px">
-          <span style="color:${col}">${p.percent}%</span>${removeBtn}
-        </span>
-      </div>
-      ${p.error ? errMsg : `
-      <div style="background:var(--bg3);border-radius:3px;height:8px;overflow:hidden">
-        <div style="height:100%;width:${p.percent}%;background:${col};transition:width .5s;border-radius:3px"></div>
-      </div>
-      <div style="color:var(--textdim);font-size:12px;margin-top:2px">${p.used} / ${p.total}</div>`}
-    </div>`;
-  }).join('');
+// Hidden disks stored in localStorage (persists across reloads)
+let _hiddenDisks = new Set(JSON.parse(localStorage.getItem('siem_hidden_disks') || '[]'));
+
+function hideDisk(device) {
+  _hiddenDisks.add(device);
+  localStorage.setItem('siem_hidden_disks', JSON.stringify([..._hiddenDisks]));
+  document.getElementById('disk-parts').querySelectorAll('[data-device]').forEach(el => {
+    if (el.dataset.device === device) el.remove();
+  });
+  _refreshDiskFooter();
 }
 
 function removeDisk(path) {
   fetch('/api/disk/remove', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path})})
     .then(r => r.json()).then(d => { if (!d.ok) alert('Could not remove disk'); });
+}
+
+function showAllDisks() {
+  _hiddenDisks.clear();
+  localStorage.removeItem('siem_hidden_disks');
+  document.getElementById('disk-hidden-bar').style.display = 'none';
+}
+
+function _refreshDiskFooter() {
+  const bar = document.getElementById('disk-hidden-bar');
+  if (_hiddenDisks.size > 0) {
+    bar.style.display = 'flex';
+    bar.querySelector('span').textContent = `${_hiddenDisks.size} hidden`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function updateDisk(disk) {
+  const container = document.getElementById('disk-parts');
+  if (!disk.partitions || disk.partitions.length === 0) {
+    container.innerHTML = '<div style="color:var(--textdim);font-size:12px">No disks found</div>';
+    _refreshDiskFooter();
+    return;
+  }
+  const visible = disk.partitions.filter(p => !_hiddenDisks.has(p.device));
+  container.innerHTML = visible.map(p => {
+    const col = p.percent > 85 ? '#ff2244' : p.percent > 70 ? '#ffaa00' : '#ffcc00';
+    const errMsg = p.error ? `<div style="color:#ff4466;font-size:11px;margin-top:2px">${esc(p.error)}</div>` : '';
+    // custom → red ✕ calls removeDisk (backend); system → eye-slash calls hideDisk (frontend)
+    const actionBtn = p.custom
+      ? `<button onclick="removeDisk('${esc(p.device)}')" title="Remove custom disk" style="background:none;border:none;color:#ff4466;cursor:pointer;font-size:12px;padding:0 0 0 4px;line-height:1;opacity:.7" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">✕</button>`
+      : `<button onclick="hideDisk('${esc(p.device)}')" title="Hide this disk" style="background:none;border:none;color:var(--textdim);cursor:pointer;font-size:11px;padding:0 0 0 4px;line-height:1;opacity:.5" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">🙈</button>`;
+    return `
+    <div data-device="${esc(p.device)}" style="border-left:2px solid ${p.custom ? 'var(--cyan)' : 'var(--yellow)'};padding-left:7px">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--textdim);margin-bottom:2px">
+        <span style="display:flex;align-items:center;overflow:hidden;max-width:70%">
+          ${_serverIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.mountpoint)}">${esc(p.label || p.device)}</span>${p.custom ? '<span style="font-size:9px;color:var(--cyan);margin-left:4px;opacity:.7">custom</span>' : ''}
+        </span>
+        <span style="display:flex;align-items:center;gap:2px">
+          <span style="color:${col};font-size:12px">${p.percent}%</span>${actionBtn}
+        </span>
+      </div>
+      ${p.error ? errMsg : `
+      <div style="background:var(--bg3);border-radius:2px;height:5px;overflow:hidden">
+        <div style="height:100%;width:${p.percent}%;background:${col};transition:width .5s;border-radius:2px"></div>
+      </div>
+      <div style="color:var(--textdim);font-size:11px;margin-top:1px">${p.used} / ${p.total}</div>`}
+    </div>`;
+  }).join('');
+  _refreshDiskFooter();
 }
 
 // ─── CONNECTIONS TABLE ───────────────────────────────────────────────────────
