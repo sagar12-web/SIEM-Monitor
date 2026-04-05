@@ -87,16 +87,8 @@ http://localhost:5555
 Once the server is running, open `http://localhost:5555` in any browser.
 
 ```
-┌─────────────────────────────────────────────────┐
-│  CPU    RAM    NETWORK I/O    DISK              │
-│  [gauge][gauge][stats]        [drive bars]      │
-├─────────────────────────────────────────────────┤
-│  Network Traffic Chart (60s)  │  GPU  │ Privacy │
-├─────────────────────────────────────────────────┤
-│  Active Connections Table                       │
-├─────────────────────────────────────────────────┤
-│  Security Events │ Active Sites │ Blocked IPs   │
-└─────────────────────────────────────────────────┘
+<img width="1910" height="869" alt="image" src="https://github.com/user-attachments/assets/2a6d3261-b2b6-4bda-8b0f-e9929175659c" />
+
 ```
 
 ---
