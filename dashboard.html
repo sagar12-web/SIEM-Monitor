@@ -380,6 +380,8 @@ tr:hover td { background: rgba(0,212,255,.04); }
   backdrop-filter: blur(3px);
 }
 #inv-overlay.show { display: flex; }
+#add-disk-overlay { display: none; }
+#add-disk-overlay.show { display: flex; }
 #inv-modal {
   background: var(--bg2);
   border: 1px solid var(--border2);
@@ -634,8 +636,13 @@ tr:hover td { background: rgba(0,212,255,.04); }
 
     <!-- DISK -->
     <div class="card">
-      <div class="card-title"><div class="dot" style="background:var(--yellow);box-shadow:0 0 5px var(--yellow)"></div>DISK</div>
-      <div id="disk-parts" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div>
+      <div class="card-title" style="justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="dot" style="background:var(--yellow);box-shadow:0 0 5px var(--yellow)"></div>DISK
+        </div>
+        <button onclick="openAddDisk()" title="Add server / custom path" style="background:rgba(255,204,0,.12);border:1px solid var(--yellow);color:var(--yellow);border-radius:5px;padding:3px 10px;cursor:pointer;font-size:13px;font-weight:700;line-height:1">+ Add Server</button>
+      </div>
+      <div id="disk-parts" style="display:flex;flex-direction:column;gap:8px;margin-top:6px"></div>
     </div>
 
   </div><!-- /stat-row -->
@@ -951,20 +958,40 @@ function updateNetwork(net) {
 }
 
 // ─── DISK UPDATE ─────────────────────────────────────────────────────────────
+const _serverIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:5px;flex-shrink:0"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`;
+
 function updateDisk(disk) {
   const container = document.getElementById('disk-parts');
-  container.innerHTML = disk.partitions.map(p => `
-    <div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--textdim);margin-bottom:3px">
-        <span>${p.device} (${p.mountpoint})</span>
-        <span style="color:${p.percent>85?'#ff2244':p.percent>70?'#ffaa00':'#ffcc00'}">${p.percent}%</span>
+  if (!disk.partitions || disk.partitions.length === 0) {
+    container.innerHTML = '<div style="color:var(--textdim);font-size:13px">No disks found</div>';
+    return;
+  }
+  container.innerHTML = disk.partitions.map(p => {
+    const col = p.percent > 85 ? '#ff2244' : p.percent > 70 ? '#ffaa00' : '#ffcc00';
+    const removeBtn = p.custom ? `<button onclick="removeDisk('${esc(p.device)}')" title="Remove" style="background:none;border:none;color:#ff2244;cursor:pointer;font-size:13px;padding:0 0 0 6px;line-height:1">✕</button>` : '';
+    const errMsg = p.error ? `<div style="color:#ff4466;font-size:12px;margin-top:2px">${esc(p.error)}</div>` : '';
+    return `
+    <div style="border-left:2px solid ${p.custom ? 'var(--cyan)' : 'var(--yellow)'};padding-left:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--textdim);margin-bottom:3px">
+        <span style="display:flex;align-items:center;overflow:hidden;max-width:72%">
+          ${_serverIcon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.mountpoint)}">${esc(p.label || p.device)}</span>${p.custom ? '<span style="font-size:10px;color:var(--cyan);margin-left:5px;opacity:.7">custom</span>' : ''}
+        </span>
+        <span style="display:flex;align-items:center;gap:4px">
+          <span style="color:${col}">${p.percent}%</span>${removeBtn}
+        </span>
       </div>
+      ${p.error ? errMsg : `
       <div style="background:var(--bg3);border-radius:3px;height:8px;overflow:hidden">
-        <div style="height:100%;width:${p.percent}%;background:${p.percent>85?'#ff2244':p.percent>70?'#ffaa00':'#ffcc00'};transition:width .5s;border-radius:3px"></div>
+        <div style="height:100%;width:${p.percent}%;background:${col};transition:width .5s;border-radius:3px"></div>
       </div>
-      <div style="color:var(--textdim);font-size:13px;margin-top:2px">${p.used} / ${p.total}</div>
-    </div>
-  `).join('');
+      <div style="color:var(--textdim);font-size:12px;margin-top:2px">${p.used} / ${p.total}</div>`}
+    </div>`;
+  }).join('');
+}
+
+function removeDisk(path) {
+  fetch('/api/disk/remove', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path})})
+    .then(r => r.json()).then(d => { if (!d.ok) alert('Could not remove disk'); });
 }
 
 // ─── CONNECTIONS TABLE ───────────────────────────────────────────────────────
@@ -1510,7 +1537,37 @@ document.getElementById('inv-overlay').addEventListener('click', e => {
 
 // Keyboard close
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeInvestigation();
+  if (e.key === 'Escape') { closeInvestigation(); closeAddDisk(); }
+});
+
+// ─── ADD SERVER / DISK MODAL ─────────────────────────────────────────────────
+function openAddDisk() {
+  document.getElementById('add-disk-overlay').classList.add('show');
+  document.getElementById('add-disk-path').focus();
+}
+function closeAddDisk() {
+  document.getElementById('add-disk-overlay').classList.remove('show');
+  document.getElementById('add-disk-path').value = '';
+  document.getElementById('add-disk-label').value = '';
+  document.getElementById('add-disk-err').textContent = '';
+}
+function submitAddDisk() {
+  const path  = document.getElementById('add-disk-path').value.trim();
+  const label = document.getElementById('add-disk-label').value.trim();
+  const errEl = document.getElementById('add-disk-err');
+  if (!path) { errEl.textContent = 'Path is required.'; return; }
+  errEl.textContent = '';
+  fetch('/api/disk/add', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({path, label: label || path}),
+  }).then(r => r.json()).then(d => {
+    if (d.ok) { closeAddDisk(); }
+    else { errEl.textContent = d.error || 'Failed to add.'; }
+  }).catch(() => { errEl.textContent = 'Server error.'; });
+}
+document.getElementById('add-disk-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('add-disk-overlay')) closeAddDisk();
 });
 </script>
 
@@ -1532,6 +1589,36 @@ document.addEventListener('keydown', e => {
       <div id="inv-footer-threat"></div>
       <button class="btn btn-cyan" onclick="navigator.clipboard?.writeText(_invCurrentIP)">📋 Copy IP</button>
       <button class="btn btn-red" onclick="blockFromModal()">🚫 BLOCK IP</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD SERVER / DISK MODAL ── -->
+<div id="add-disk-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:600;align-items:center;justify-content:center;backdrop-filter:blur(3px)">
+  <div style="background:var(--bg2);border:1px solid var(--yellow);border-radius:10px;padding:28px 28px 22px;width:380px;box-shadow:0 0 40px rgba(255,204,0,.18);animation:modalIn .2s ease">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--yellow)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        Add Server / Disk
+      </div>
+      <button onclick="closeAddDisk()" style="background:none;border:none;color:var(--textdim);cursor:pointer;font-size:18px;line-height:1">✕</button>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;color:var(--textdim);display:block;margin-bottom:5px">MOUNT PATH OR DIRECTORY</label>
+      <input id="add-disk-path" type="text" placeholder="e.g. /Volumes/MyDrive or /mnt/server"
+        onkeydown="if(event.key==='Enter')submitAddDisk()"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:8px 10px;font-size:13px;outline:none">
+    </div>
+    <div style="margin-bottom:18px">
+      <label style="font-size:12px;color:var(--textdim);display:block;margin-bottom:5px">DISPLAY LABEL <span style="opacity:.5">(optional)</span></label>
+      <input id="add-disk-label" type="text" placeholder="e.g. Backup Server"
+        onkeydown="if(event.key==='Enter')submitAddDisk()"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:8px 10px;font-size:13px;outline:none">
+    </div>
+    <div id="add-disk-err" style="color:#ff4466;font-size:12px;margin-bottom:10px;min-height:16px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeAddDisk()" class="btn" style="background:var(--bg3);border:1px solid var(--border2);color:var(--textdim)">Cancel</button>
+      <button onclick="submitAddDisk()" class="btn btn-cyan" style="background:rgba(255,204,0,.15);border:1px solid var(--yellow);color:var(--yellow)">Add Disk</button>
     </div>
   </div>
 </div>

@@ -31,6 +31,9 @@ blocked_ips: set = set()
 threat_events: deque = deque(maxlen=1000)
 event_id_counter = 0
 
+# Manually added server/disk paths
+_custom_disk_paths: list = []  # list of {'label': str, 'path': str}
+
 # Per-IP tracking for threat detection
 # ip -> list of (timestamp, port)
 connection_history: dict = defaultdict(list)
@@ -259,16 +262,45 @@ def get_disk_metrics() -> dict:
             parts.append({
                 'device':     p.device.split('/')[-1],
                 'mountpoint': p.mountpoint,
+                'label':      p.device.split('/')[-1],
                 'total':      _fmt_bytes(u.total),
                 'used':       _fmt_bytes(u.used),
                 'percent':    u.percent,
+                'custom':     False,
             })
         except Exception:
             pass
+    # Include manually added server/disk paths
+    for entry in _custom_disk_paths:
+        try:
+            u = psutil.disk_usage(entry['path'])
+            parts.append({
+                'device':     entry['path'],
+                'mountpoint': entry['path'],
+                'label':      entry['label'],
+                'total':      _fmt_bytes(u.total),
+                'used':       _fmt_bytes(u.used),
+                'percent':    u.percent,
+                'custom':     True,
+            })
+        except Exception:
+            parts.append({
+                'device':     entry['path'],
+                'mountpoint': entry['path'],
+                'label':      entry['label'],
+                'total':      'N/A',
+                'used':       'N/A',
+                'percent':    0,
+                'custom':     True,
+                'error':      'Path unavailable',
+            })
+    # Custom entries first, then auto-detected (max 4 auto to leave room)
+    custom = [p for p in parts if p['custom']]
+    auto   = [p for p in parts if not p['custom']][:max(4, 8 - len(custom))]
     return {
         'read_bytes':  io.read_bytes if io else 0,
         'write_bytes': io.write_bytes if io else 0,
-        'partitions':  parts[:4],
+        'partitions':  custom + auto,
     }
 
 def get_gpu_metrics() -> dict:
@@ -783,6 +815,26 @@ def api_status():
         'listening':   get_listening_ports(),
         'gpu':         get_gpu_metrics(),
     })
+
+@app.route('/api/disk/add', methods=['POST'])
+def api_disk_add():
+    data = request.get_json() or {}
+    path  = data.get('path', '').strip()
+    label = data.get('label', '').strip() or path
+    if not path:
+        return jsonify({'ok': False, 'error': 'path required'}), 400
+    # Avoid duplicates
+    if any(e['path'] == path for e in _custom_disk_paths):
+        return jsonify({'ok': False, 'error': 'already added'}), 409
+    _custom_disk_paths.append({'label': label, 'path': path})
+    return jsonify({'ok': True})
+
+@app.route('/api/disk/remove', methods=['POST'])
+def api_disk_remove():
+    path = (request.get_json() or {}).get('path', '').strip()
+    before = len(_custom_disk_paths)
+    _custom_disk_paths[:] = [e for e in _custom_disk_paths if e['path'] != path]
+    return jsonify({'ok': len(_custom_disk_paths) < before})
 
 @app.route('/api/block', methods=['POST'])
 def api_block():
