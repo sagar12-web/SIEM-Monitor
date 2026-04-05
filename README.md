@@ -10,7 +10,7 @@ A free, open-source, real-time security dashboard for macOS. Monitor your system
 
 ## 📸 What It Does
 
-| Feature | Description |
+Feature / Description
 
 | 🖥️ System Monitor | Live CPU, RAM, GPU and Disk gauges |
 | 🌐 Network Traffic | Real-time 60-second send/receive chart |
@@ -88,12 +88,12 @@ Once the server is running, open `http://localhost:5555` in any browser.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  CPU    RAM    NETWORK I/O    DISK               │
-│  [gauge][gauge][stats]        [drive bars]       │
+│  CPU    RAM    NETWORK I/O    DISK              │
+│  [gauge][gauge][stats]        [drive bars]      │
 ├─────────────────────────────────────────────────┤
 │  Network Traffic Chart (60s)  │  GPU  │ Privacy │
 ├─────────────────────────────────────────────────┤
-│  Active Connections Table                        │
+│  Active Connections Table                       │
 ├─────────────────────────────────────────────────┤
 │  Security Events │ Active Sites │ Blocked IPs   │
 └─────────────────────────────────────────────────┘
