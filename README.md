@@ -90,10 +90,12 @@ http://localhost:5555
 
 Once the server is running, open `http://localhost:5555` in any browser.
 
-```
-<img width="1910" height="869" alt="image" src="https://github.com/user-attachments/assets/2a6d3261-b2b6-4bda-8b0f-e9929175659c" />
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![Flask](https://img.shields.io/badge/Flask-2.3%2B-green) ![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-black) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-```
+---
+
+![LocalSIEM Dashboard](screenshot.png)
+
 
 ---
 
