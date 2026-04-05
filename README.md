@@ -8,6 +8,10 @@ A free, open-source, real-time security dashboard for macOS. Monitor your system
 
 ---
 
+![LocalSIEM Dashboard](screenshot.png)
+
+---
+
 ## 📸 What It Does
 
 Feature / Description
