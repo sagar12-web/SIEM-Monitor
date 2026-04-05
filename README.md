@@ -38,7 +38,7 @@ Feature / Description
 
 ### Option 1 — One-Line Installer (Recommended)
 
-Open "Terminal" and paste:
+Open Terminal and paste:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/sagar12-web/SIEM-Monitor/main/install.sh | bash
